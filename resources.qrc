@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resources/MainApp/ethercat_icon.svg</file>
+        <file>resources/TitleBar/file.svg</file>
+        <file>resources/TitleBar/search.svg</file>
+    </qresource>
+</RCC>

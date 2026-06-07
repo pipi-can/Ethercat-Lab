@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>layouts/components/ColorImage.qml</file>
+        <file>layouts/components/IconButton.qml</file>
+        <file>layouts/TitleBar/TitleBar.qml</file>
+        <file>layouts/components/Seprator.qml</file>
+        <file>layouts/components/InputField.qml</file>
+        <file>layouts/CenterWidget/CenterWidget.qml</file>
+    </qresource>
+</RCC>

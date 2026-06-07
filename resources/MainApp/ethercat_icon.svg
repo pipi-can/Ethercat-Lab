@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="mg" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#1a56db"/>
+      <stop offset="1" stop-color="#1e40af"/>
+    </linearGradient>
+    <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1a56db"/>
+    </linearGradient>
+    <linearGradient id="n1" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="n2" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#93c5fd"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background -->
+  <rect x="16" y="16" width="224" height="224" rx="48" fill="url(#mg)"/>
+
+  <!-- ring glow background lines -->
+  <path d="M68 118 Q128 40 188 118" fill="none" stroke="#93c5fd" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <path d="M68 138 Q128 216 188 138" fill="none" stroke="#93c5fd" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <path d="M68 118 L68 138" fill="none" stroke="#93c5fd" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <path d="M188 118 L188 138" fill="none" stroke="#93c5fd" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- ring main -->
+  <path d="M72 128 Q128 52 184 128" fill="none" stroke="url(#rg)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M72 128 Q128 204 184 128" fill="none" stroke="url(#rg)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M72 120 L72 136" fill="none" stroke="url(#rg)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M184 120 L184 136" fill="none" stroke="url(#rg)" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- slave nodes -->
+  <circle cx="72" cy="100" r="14" fill="url(#n1)"/>
+  <circle cx="72" cy="100" r="5" fill="white" opacity="0.6"/>
+
+  <circle cx="184" cy="100" r="14" fill="url(#n1)"/>
+  <circle cx="184" cy="100" r="5" fill="white" opacity="0.6"/>
+
+  <circle cx="72" cy="156" r="14" fill="url(#n1)"/>
+  <circle cx="72" cy="156" r="5" fill="white" opacity="0.6"/>
+
+  <circle cx="184" cy="156" r="14" fill="url(#n1)"/>
+  <circle cx="184" cy="156" r="5" fill="white" opacity="0.6"/>
+
+  <!-- master node -->
+  <circle cx="128" cy="128" r="22" fill="url(#n2)"/>
+  <circle cx="128" cy="128" r="10" fill="white" opacity="0.35"/>
+  <circle cx="128" cy="128" r="4" fill="white" opacity="0.8"/>
+
+  <!-- data flow arrows -->
+  <polygon points="108,88 114,84 114,92" fill="white" opacity="0.7"/>
+  <polygon points="80,128 74,124 78,132" fill="white" opacity="0.6"/>
+  <polygon points="176,128 178,122 182,130" fill="white" opacity="0.6"/>
+  <polygon points="128,164 124,158 132,160" fill="white" opacity="0.7"/>
+
+  <!-- label -->
+  <text x="128" y="226" text-anchor="middle" fill="white"
+        font-family="Arial,Helvetica,sans-serif" font-weight="bold" font-size="24"
+        letter-spacing="2">EC-Lab</text>
+</svg>
