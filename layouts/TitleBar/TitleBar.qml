@@ -7,7 +7,9 @@ import "../components"
 Rectangle {
     id: root
 
-    color: "#1C1F26"
+    signal openEsiClicked()
+
+    color: ThemeManager.current.bgTitleBar
     height: 45
     // 占位——后续会添加窗口控制按钮、标题文字等内容
 
@@ -18,29 +20,30 @@ Rectangle {
             leftMargin: 20
             verticalCenter: parent.verticalCenter
         }
-        height: 38
+        height: 34
         iconSource: "qrc:/resources/TitleBar/file.svg"
-        iconPlaceColor: "white"
-        iconHoverColor: "white"
-        iconPressColor: "white"
+        iconPlaceColor: ThemeManager.current.textPrimary
+        iconHoverColor: ThemeManager.current.textPrimary
+        iconPressColor: ThemeManager.current.textPrimary
 
-        bgPlaceColor: "#5294E2"
-        bgHoverColor: Qt.lighter(bgPlaceColor, 1.2)
-        bgPressColor: Qt.lighter(bgPlaceColor, 1.2)
+        bgPlaceColor: ThemeManager.current.accent
+        bgHoverColor: Qt.lighter(ThemeManager.current.accent, 1.2)
+        bgPressColor: Qt.lighter(ThemeManager.current.accent, 1.2)
 
         buttonText: qsTr("Open ESI")
-        textPlaceColor: "white"
-        textHoverColor: "white"
-        textPressColor: "white"
+        textPlaceColor: ThemeManager.current.textPrimary
+        textHoverColor: ThemeManager.current.textPrimary
+        textPressColor: ThemeManager.current.textPrimary
         fontFamily: "微软雅黑"
         fontBold: true
 
+        onClicked: root.openEsiClicked()
 
     }
 
     Seprator {
         id: sep1
-        color: "#282C34"
+        color: ThemeManager.current.bgSeparator
         anchors {
             left: openEsiBtn.right
             leftMargin: 10
@@ -61,14 +64,14 @@ Rectangle {
             id: stateIndicator
             width: 10
             height: 10
-            color: "#8795B0"
+            color: ThemeManager.current.textMuted
             radius: 6
             anchors.verticalCenter: parent.verticalCenter
         }
         Text {
             id: stateText
             text: qsTr("No file selected")
-            color: "#8795B0"
+            color: ThemeManager.current.textMuted
             font.family: "微软雅黑"
             font.pixelSize: 12
             font.bold: false
@@ -95,9 +98,9 @@ Rectangle {
         iconPosition: "left"
         iconSize: 16
         iconMargin: 8
-        textColor: "#8795B0"
-        textFocusColor: "#5294E2"
-        iconColor: "#8795B0"
-        iconFocusColor: "#5294E2"
+        textColor: ThemeManager.current.textMuted
+        textFocusColor: ThemeManager.current.accent
+        iconColor: ThemeManager.current.textMuted
+        iconFocusColor: ThemeManager.current.accent
     }
 }

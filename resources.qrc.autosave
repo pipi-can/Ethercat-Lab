@@ -3,8 +3,8 @@
         <file>resources/MainApp/ethercat_icon.svg</file>
         <file>resources/TitleBar/file.svg</file>
         <file>resources/TitleBar/search.svg</file>
-        <file>resources/NavigatorBar/file.svg</file>
         <file>resources/NavigatorBar/dictionary.svg</file>
+        <file>resources/NavigatorBar/file.svg</file>
         <file>resources/NavigatorBar/mapping.svg</file>
     </qresource>
 </RCC>

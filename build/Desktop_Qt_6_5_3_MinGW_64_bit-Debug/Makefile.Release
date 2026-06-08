@@ -107,19 +107,29 @@ compiler_rcc_clean:
 release/qrc_qml.cpp: ../../qml.qrc \
 		D:/Qt/6.5.3/mingw_64/bin/rcc.exe \
 		../../main.qml \
+		../../layouts/ESIBrowserWidget/ESIBrowserWidget.qml \
+		../../layouts/ESIBrowserWidget/BrowserTreeView/BrowserTreeWidget.qml \
+		../../layouts/ESIBrowserWidget/CenterInfoWidget/CenterInfoWidget.qml \
 		../../layouts/TitleBar/TitleBar.qml \
+		../../layouts/NavigationBar/NavigatorBar.qml \
 		../../layouts/CenterWidget/CenterWidget.qml \
+		../../layouts/components/ThemeConfig.js \
 		../../layouts/components/Seprator.qml \
 		../../layouts/components/ColorImage.qml \
 		../../layouts/components/InputField.qml \
-		../../layouts/components/IconButton.qml
+		../../layouts/components/IconButton.qml \
+		../../layouts/components/ThemeManager.qml \
+		../../layouts/components/qmldir
 	D:\Qt\6.5.3\mingw_64\bin\rcc.exe -name qml --no-zstd ..\..\qml.qrc -o release\qrc_qml.cpp
 
 release/qrc_resources.cpp: ../../resources.qrc \
 		D:/Qt/6.5.3/mingw_64/bin/rcc.exe \
 		../../resources/TitleBar/file.svg \
 		../../resources/TitleBar/search.svg \
-		../../resources/MainApp/ethercat_icon.svg
+		../../resources/MainApp/ethercat_icon.svg \
+		../../resources/NavigatorBar/file.svg \
+		../../resources/NavigatorBar/mapping.svg \
+		../../resources/NavigatorBar/dictionary.svg
 	D:\Qt\6.5.3\mingw_64\bin\rcc.exe -name resources --no-zstd ..\..\resources.qrc -o release\qrc_resources.cpp
 
 compiler_moc_predefs_make_all: release/moc_predefs.h

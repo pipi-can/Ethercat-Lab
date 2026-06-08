@@ -34,8 +34,8 @@ Rectangle {
     /*
      * @brief: 图标在各状态下的颜色。
      */
-    property color iconColor: "#c0c0c0"
-    property color iconFocusColor: "#ffffff"
+    property color iconColor: ThemeManager.current.inputIcon
+    property color iconFocusColor: ThemeManager.current.inputIconFocus
 
     // ── 文字内容 ────────────────────────────────────────────────────────
     property alias text: textField.text
@@ -47,20 +47,20 @@ Rectangle {
      * @brief: 未选中 / 选中（获得焦点）状态下的各颜色。
      *         cursorColor / cursorFocusColor 控制光标（输入线）颜色。
      */
-    property color bgColor: "#252540"
-    property color bgFocusColor: "#2a2a4a"
+    property color bgColor: ThemeManager.current.inputBg
+    property color bgFocusColor: ThemeManager.current.inputBgFocus
 
-    property color textColor: "#e0e0e0"
-    property color textFocusColor: "#ffffff"
+    property color textColor: ThemeManager.current.inputText
+    property color textFocusColor: ThemeManager.current.inputTextFocus
 
-    property color cursorColor: "#1a8fc9"
-    property color cursorFocusColor: "#1a8fc9"
+    property color cursorColor: ThemeManager.current.inputCursor
+    property color cursorFocusColor: ThemeManager.current.inputCursorFocus
 
-    property color borderColor: "#3a3a52"
-    property color borderFocusColor: "#1a8fc9"
+    property color borderColor: ThemeManager.current.inputBorder
+    property color borderFocusColor: ThemeManager.current.inputBorderFocus
 
-    property color placeholderColor: "#555566"
-    property color placeholderFocusColor: "#666677"
+    property color placeholderColor: ThemeManager.current.inputPlaceholder
+    property color placeholderFocusColor: ThemeManager.current.inputPlaceholderFocus
 
     // ── 边框 ────────────────────────────────────────────────────────────
     property int borderWidth: 1

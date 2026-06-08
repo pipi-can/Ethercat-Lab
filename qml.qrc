@@ -7,5 +7,12 @@
         <file>layouts/components/Seprator.qml</file>
         <file>layouts/components/InputField.qml</file>
         <file>layouts/CenterWidget/CenterWidget.qml</file>
+        <file>layouts/ESIBrowserWidget/BrowserTreeView/BrowserTreeWidget.qml</file>
+        <file>layouts/ESIBrowserWidget/CenterInfoWidget/CenterInfoWidget.qml</file>
+        <file>layouts/components/ThemeConfig.js</file>
+        <file>layouts/components/ThemeManager.qml</file>
+        <file>layouts/components/qmldir</file>
+        <file>layouts/NavigationBar/NavigatorBar.qml</file>
+        <file>layouts/ESIBrowserWidget/ESIBrowserWidget.qml</file>
     </qresource>
 </RCC>

@@ -31,24 +31,24 @@ Rectangle {
     property string fontFamily: ""
 
     // ── 背景颜色 ────────────────────────────────────────────────────────
-    property color bgPlaceColor: "#2a2a3a"
-    property color bgHoverColor: "#3a3a4e"
-    property color bgPressColor: "#1a1a2a"
+    property color bgPlaceColor: ThemeManager.current.buttonBg
+    property color bgHoverColor: ThemeManager.current.buttonBgHover
+    property color bgPressColor: ThemeManager.current.buttonBgPress
 
     // ── 图标着色 ────────────────────────────────────────────────────────
-    property color iconPlaceColor: "#c0c0c0"
-    property color iconHoverColor: "#ffffff"
-    property color iconPressColor: "#ffffff"
+    property color iconPlaceColor: ThemeManager.current.buttonIcon
+    property color iconHoverColor: ThemeManager.current.buttonIconHover
+    property color iconPressColor: ThemeManager.current.buttonIconPress
 
     // ── 文字颜色 ────────────────────────────────────────────────────────
-    property color textPlaceColor: "#c0c0c0"
-    property color textHoverColor: "#ffffff"
-    property color textPressColor: "#ffffff"
+    property color textPlaceColor: ThemeManager.current.buttonText
+    property color textHoverColor: ThemeManager.current.buttonTextHover
+    property color textPressColor: ThemeManager.current.buttonTextPress
 
     // ── 边框 ────────────────────────────────────────────────────────────
-    property color borderPlaceColor: "transparent"
-    property color borderHoverColor: "transparent"
-    property color borderPressColor: "transparent"
+    property color borderPlaceColor: ThemeManager.current.buttonBorder
+    property color borderHoverColor: ThemeManager.current.buttonBorderHover
+    property color borderPressColor: ThemeManager.current.buttonBorderPress
     property int borderWidth: 0
 
     readonly property bool buttonHovered: mouseArea.containsMouse

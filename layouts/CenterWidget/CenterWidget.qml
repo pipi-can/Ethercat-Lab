@@ -1,7 +1,8 @@
 import QtQuick 2.15
+import "../components"
 
 
 Rectangle {
     id: centerWidget
-    color: "#15181D"
+    color: ThemeManager.current.bgWindow
 }
