@@ -18,11 +18,13 @@ mingw32-make
 
 ## 架构
 
-这是一个基于 Qt Quick（QML）的 EtherCAT 设备管理桌面应用——目前处于 Phase 0（UI 脚手架 + 主题系统 + ESI 浏览器静态布局）。
+这是一个基于 Qt Quick（QML）的 EtherCAT 设备管理桌面应用——目前处于 Phase 1（ESI 解析器完成，待做 ViewModel 桥接）。
 
-### C++ 层（`main.cpp`、`sources/`、`includes/`）
+### C++ 层（`main.cpp`、`interfaces/`）
 
 - `main.cpp` — 入口，创建 `QGuiApplication` + `QQmlApplicationEngine`。
+- `interfaces/ESI_def.h` — 完整 ESI 数据模型，~20 个纯 C++ struct，覆盖 EtherCATInfo 全部字段（Device/Mailbox/PDO/Dictionary/DC/Slots/ESC/Enum 等）。
+- `interfaces/esiparser.h/.cpp` — `ESIParser : QObject`，基于 `QXmlStreamReader` 的流式 XML 解析器。**已完成全部字段解析**，已通过 Copley XE2 真实 XML（600KB）验证。
 - `ThemeManager`（C++ 单例）— 已存在但**已被 QML 侧同名单例取代**，后续可移除或精简。
 
 ### QML 层：布局树（当前实际结构）
@@ -136,6 +138,82 @@ Popup {
 
 `ui-prototype/esi-browser-interactive.html` — 原生 HTML 原型，CSS 变量 + 完整交互。颜色、布局、间距均以此为基准。修改 QML 布局前应先对照此文件。
 
+## ESI 解析器（`interfaces/esiparser.h/.cpp`）
+
+### 调用方式
+
+```cpp
+ESIParser parser;
+ECATInfo info = parser.parseECATInfo("path/to/file.xml");
+// info.devices, info.modules, info.vendor, info.groups 已全部填充
+```
+
+### 解析覆盖范围
+
+| 层级 | 函数 | 覆盖字段 |
+|------|------|---------|
+| 顶层 | `parseECATInfo` | Vendor, Groups, Devices, Modules |
+| Device | `parseDevices` | Physics, Type/ProductCode/RevisionNo, Name, GroupType, Fmmu, Sm, RxPdo, TxPdo, Mailbox, Eeprom, Profile, Dc, Slots, ESC, ImageData16x14 |
+| Mailbox | `parseMailBox` | DataLinkLayer, EoE/CoE/FoE/AoE/SoE/VoE, CoE 属性, InitCmd |
+| Dictionary | `parseDictionary` + `parseDataTypes` + `parseObjects` | DataType (Name/BaseType/BitSize/ArrayInfo/SubItem), Object (Index/Name/Type/Flags/Enum/SubItem) |
+| Dc | `parseDcOpModes` + `parseDcOpMode` | Name, Desc, AssignActivate, CycleTimeSync0(Factor), ShiftTimeSync0 |
+| Slots | `parseSlots` | SlotPdoIncrement, SlotIndexIncrement, Slot → Name/Max/MinInstances/ModuleIdent |
+| ESC | `parseESC` | Reg0108/0400/0410/0420 + 未知 RegXXXX 存入 extraRegs map |
+| Enum | `parseEnum` + `parseEnumInfo` | 对象/SubItem 的 Enum/Denotation/Indication（贝克霍夫系常用） |
+
+### QXmlStreamReader 关键陷阱（踩过的坑）
+
+**1. 自闭合元素必须 `skipCurrentElement()`**
+
+对于 `<EoE/>`、`<FoE/>`、`<AoE/>` 等自闭合元素，只设置标志位（如 `result.eoe = true`）不够——reader 会停在 StartElement 位置。下次 `readNextStartElement()` 读到的是 EndElement，直接返回 false，**后续同级元素全部丢失**。
+
+```cpp
+// ❌ 错误：reader 卡住，后续元素丢失
+if (name == "EoE") {
+    result.eoe = true;
+}
+
+// ✅ 正确：主动跳过自闭合元素
+if (name == "EoE") {
+    result.eoe = true;
+    xml.skipCurrentElement();
+}
+```
+
+**2. `readNextStartElement()` 的"当前元素"语义**
+
+`readNextStartElement()` 在当前元素**内部**查找下一个 StartElement。如果 reader 正停在一个自闭合元素的 StartElement 上，它会先读到 EndElement → 判断到达当前元素末尾 → 返回 false。这就是陷阱 1 的根因。
+
+**3. `#x` 前缀的 hex 值不会自动转换**
+
+```cpp
+// ❌ "SlotIndexIncrement='#x800'" → toUInt() 返回 0
+result.slotIndexIncrement = xml.attributes().value("SlotIndexIncrement").toString().toUInt();
+
+// ✅ 需要手动处理 #x 前缀
+QString s = xml.attributes().value("SlotIndexIncrement").toString();
+result.slotIndexIncrement = s.startsWith("#x") ? s.mid(2).toUInt(nullptr, 16) : s.toUInt();
+```
+
+### CoE 元素处理（自闭合 vs 非自闭合）
+
+Device 层级 CoE 通常是自闭合的 `<CoE PdoAssign="1" .../>`（无 InitCmd），Module 层级的 CoE 包含子元素 `<CoE><InitCmd>...</InitCmd></CoE>`。
+
+```cpp
+} else if (name == "CoE") {
+    result.coe = true;
+    // 解析属性...
+    // readNextStartElement(): 自闭合立即返回 false，非自闭合进入子元素
+    while (xml.readNextStartElement()) {
+        if (xml.name() == QStringView(u"InitCmd")) {
+            result.initCmds.push_back(parseInitCmd(xml));
+        } else {
+            xml.skipCurrentElement();
+        }
+    }
+}
+```
+
 ## 项目设计文档
 
-`EtherCAT_Lab_评估与架构设计_QML版.md` — 完整技术架构文档（v2.0），含四层架构、7 模块路线图、技术选型对比、风险识别。**当前处于 Phase 1 早期**。
+`EtherCAT_Lab_评估与架构设计_QML版.md` — 完整技术架构文档（v2.0），含四层架构、7 模块路线图、技术选型对比、风险识别。**当前处于 Phase 1 中期（解析器完成，待 ViewModel 桥接）**。

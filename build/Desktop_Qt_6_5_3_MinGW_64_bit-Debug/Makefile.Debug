@@ -554,7 +554,8 @@ debug/esiparser.o: ../../interfaces/esiparser.cpp ../../interfaces/esiparser.h \
 		D:/Qt/6.5.3/mingw_64/include/QtCore/qset.h \
 		D:/Qt/6.5.3/mingw_64/include/QtCore/qhash.h \
 		D:/Qt/6.5.3/mingw_64/include/QtCore/qvarlengtharray.h \
-		D:/Qt/6.5.3/mingw_64/include/QtCore/q20memory.h
+		D:/Qt/6.5.3/mingw_64/include/QtCore/q20memory.h \
+		D:/Qt/6.5.3/mingw_64/include/QtCore/QStringView
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o debug\esiparser.o ..\..\interfaces\esiparser.cpp
 
 debug/qrc_qml.o: debug/qrc_qml.cpp 
