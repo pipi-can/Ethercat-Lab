@@ -3,6 +3,8 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 
+#include "interfaces/esitreemodel.h"
+
 int main(int argc, char *argv[])
 {
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
@@ -14,6 +16,8 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
+    ESITreeModel* esiTreeModel = &ESITreeModel::getInstance();
+    engine.rootContext()->setContextProperty("ESITreeModel", esiTreeModel);
 
     const QUrl url(QStringLiteral("qrc:/main.qml"));
     QObject::connect(

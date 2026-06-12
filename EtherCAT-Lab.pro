@@ -6,10 +6,12 @@ QT += quick xml
 
 HEADERS += \
     interfaces/ESI_def.h \
-    interfaces/esiparser.h
+    interfaces/esiparser.h \
+    interfaces/esitreemodel.h
 
 SOURCES += main.cpp \
-    interfaces/esiparser.cpp
+    interfaces/esiparser.cpp \
+    interfaces/esitreemodel.cpp
 
 RESOURCES += qml.qrc \
     resources.qrc

@@ -10,13 +10,19 @@ class ESIParser : public QObject
 {
     Q_OBJECT
 public:
-    explicit ESIParser(QObject *parent = nullptr);
+    ESIParser(const ESIParser& other) = delete;
+    void operator=(const ESIParser& other) = delete;
+
+    static ESIParser& getInstance();
 
     ECATInfo parseECATInfo(const QString& filePath);
 
 signals:
 
 private:
+    explicit ESIParser(QObject *parent = nullptr);
+    ~ESIParser();
+
     void parseVendor(QXmlStreamReader &xml, ECATInfo &info);
     void parseGroups(QXmlStreamReader &xml, ECATInfo &info);
     void parseDevices(QXmlStreamReader &xml, ECATInfo &info);

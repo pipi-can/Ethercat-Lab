@@ -8,6 +8,15 @@ ESIParser::ESIParser(QObject *parent)
     : QObject{parent}
 {}
 
+ESIParser::~ESIParser()
+{}
+
+ESIParser &ESIParser::getInstance()
+{
+    static ESIParser instance;
+    return instance;
+}
+
 ECATInfo ESIParser::parseECATInfo(const QString &filePath)
 {
     // Bug 2 fix: QFile + QXmlStreamReader 正确构造
@@ -44,6 +53,7 @@ ECATInfo ESIParser::parseECATInfo(const QString &filePath)
     }
 
     // Bug 1 fix: 返回结果
+    qDebug() << "parse finish: " << filePath;
     return result;
 }
 

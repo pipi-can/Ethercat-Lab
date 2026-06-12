@@ -148,6 +148,7 @@ ApplicationWindow {
         }
 
         console.log("Loading ESI:", path)
+        ESITreeModel.loadFile(path)
         // TODO: Phase 1 — 调用 EsiParser 加载文件
     }
 

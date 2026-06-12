@@ -47,6 +47,7 @@ struct ESIGroup {
 // ════════════════════════════════════════════════════════════
 
 struct ESIInfo {
+    std::string  name                = "Timeout Info";
     unsigned int preopTimeout        = 0;
     unsigned int safeopOpTimeout     = 0;
     unsigned int backToInitTimeout   = 0;
