@@ -29,26 +29,36 @@ ECATInfo ESIParser::parseECATInfo(const QString &filePath)
     ECATInfo result;
     QXmlStreamReader xml(&file);
 
-    if (xml.readNextStartElement() && xml.name() == QStringView(u"EtherCATInfo")) {
-        while (xml.readNextStartElement()) {
-            if (xml.name() == QStringView(u"Vendor")) {
-                parseVendor(xml, result);
-            } else if (xml.name() == QStringView(u"Descriptions")) {
-                // Groups / Devices / Modules 都在 Descriptions 里
-                while (xml.readNextStartElement()) {
-                    if (xml.name() == QStringView(u"Groups")) {
-                        parseGroups(xml, result);
-                    } else if (xml.name() == QStringView(u"Devices")) {
-                        parseDevices(xml, result);
-                    } else if (xml.name() == QStringView(u"Modules")) {
-                        parseModules(xml, result);
-                    } else {
-                        xml.skipCurrentElement();
+    if (xml.readNextStartElement()) {
+        const auto rootName = xml.name();
+        if (rootName == QStringView(u"EtherCATInfo")) {
+            while (xml.readNextStartElement()) {
+                if (xml.name() == QStringView(u"Vendor")) {
+                    parseVendor(xml, result);
+                } else if (xml.name() == QStringView(u"Descriptions")) {
+                    // Groups / Devices / Modules 都在 Descriptions 里
+                    while (xml.readNextStartElement()) {
+                        if (xml.name() == QStringView(u"Groups")) {
+                            parseGroups(xml, result);
+                        } else if (xml.name() == QStringView(u"Devices")) {
+                            parseDevices(xml, result);
+                        } else if (xml.name() == QStringView(u"Modules")) {
+                            parseModules(xml, result);
+                        } else {
+                            xml.skipCurrentElement();
+                        }
                     }
+                } else if (xml.name() == QStringView(u"InfoReference")) {
+                    xml.skipCurrentElement();   // 跨文件引用，仅跳过
+                } else {
+                    xml.skipCurrentElement();
                 }
-            } else {
-                xml.skipCurrentElement();
             }
+        } else if (rootName == QStringView(u"EtherCATModule")) {
+            // Weidmueller 等厂商的模块化格式：根下直接是 Vendor + Modules
+            result = parseEtherCATModule(filePath, xml);
+        } else {
+            qDebug() << "Unknown root element:" << rootName.toString() << "in" << filePath;
         }
     }
 
@@ -57,13 +67,36 @@ ECATInfo ESIParser::parseECATInfo(const QString &filePath)
     return result;
 }
 
+ECATInfo ESIParser::parseEtherCATModule(const QString &/*filePath*/, QXmlStreamReader &xml)
+{
+    ECATInfo result;
+
+    // <EtherCATModule> 根下直接是 <Vendor> + <Modules>，没有 <Descriptions> 包裹
+    while (xml.readNextStartElement()) {
+        if (xml.name() == QStringView(u"Vendor")) {
+            parseVendor(xml, result);
+        } else if (xml.name() == QStringView(u"Modules")) {
+            parseModules(xml, result);
+        } else if (xml.name() == QStringView(u"InfoReference")) {
+            xml.skipCurrentElement();
+        } else {
+            xml.skipCurrentElement();
+        }
+    }
+
+    return result;
+}
+
 void ESIParser::parseVendor(QXmlStreamReader &xml, ECATInfo &info)
 {
+    info.vendor.fileVersion = xml.attributes().value("FileVersion").toString().toStdString();
     while (xml.readNextStartElement()) {
         if (xml.name() == QStringView(u"Id")) {
             info.vendor.id = xml.readElementText().toStdString();
         } else if (xml.name() == QStringView(u"Name")) {
             info.vendor.name = xml.readElementText().toStdString();
+        } else if (xml.name() == QStringView(u"ImageData16x14")) {
+            info.vendor.imageData16x14 = xml.readElementText().toStdString();
         } else {
             xml.skipCurrentElement();
         }
@@ -83,6 +116,10 @@ void ESIParser::parseGroups(QXmlStreamReader &xml, ECATInfo &info)
                     group.type = xml.readElementText().toStdString();
                 } else if (xml.name() == QStringView(u"Name")) {
                     group.name = xml.readElementText().toStdString();
+                } else if (xml.name() == QStringView(u"ImageData16x14")) {
+                    group.imageData16x14 = xml.readElementText().toStdString();
+                } else if (xml.name() == QStringView(u"Image16x14")) {
+                    group.image16x14 = xml.readElementText().toStdString();
                 } else {
                     xml.skipCurrentElement();
                 }
@@ -351,6 +388,8 @@ ESIProfile ESIParser::parseProfile(QXmlStreamReader &xml)
         QString name = xml.name().toString();
         if (name == "ProfileNo") {
             result.profileNo = xml.readElementText().toStdString();
+        } else if (name == "AddInfo") {
+            result.addInfo = xml.readElementText().toStdString();
         } else if (name == "Dictionary") {
             result.dictionary = parseDictionary(xml);
         } else {
@@ -665,6 +704,8 @@ ESIModule ESIParser::parseModule(QXmlStreamReader &xml)
         QString name = xml.name().toString();
         if (name == "Type") {
             result.moduleIdent = xml.attributes().value("ModuleIdent").toString().toStdString();
+            result.moduleClass = xml.attributes().value("ModuleClass").toString().toStdString();
+            result.modulePdoGroup = xml.attributes().value("ModulePdoGroup").toString().toInt();
             result.type = xml.readElementText().toStdString();
         } else if (name == "Name") {
             result.name = xml.readElementText().toStdString();

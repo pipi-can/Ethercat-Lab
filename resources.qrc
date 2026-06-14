@@ -6,5 +6,17 @@
         <file>resources/NavigatorBar/file.svg</file>
         <file>resources/NavigatorBar/dictionary.svg</file>
         <file>resources/NavigatorBar/mapping.svg</file>
+        <file>resources/tree-icons/vendor.svg</file>
+        <file>resources/tree-icons/group.svg</file>
+        <file>resources/tree-icons/device.svg</file>
+        <file>resources/tree-icons/sm-out.svg</file>
+        <file>resources/tree-icons/sm-in.svg</file>
+        <file>resources/tree-icons/pdo-rx.svg</file>
+        <file>resources/tree-icons/pdo-tx.svg</file>
+        <file>resources/tree-icons/entry.svg</file>
+        <file>resources/tree-icons/mailbox.svg</file>
+        <file>resources/tree-icons/dc.svg</file>
+        <file>resources/tree-icons/module.svg</file>
+        <file>resources/tree-icons/arrow.svg</file>
     </qresource>
 </RCC>

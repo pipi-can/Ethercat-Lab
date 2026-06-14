@@ -24,10 +24,12 @@ struct Flags {
 struct ESIVendor {
     std::string id;
     std::string name;
+    std::string imageData16x14;      // base64 图标（Beckhoff/Copley/Weidmueller 均有）
+    std::string fileVersion;         // Vendor 的 FileVersion 属性
 
-    ESIVendor() : id(""), name("") {}
+    ESIVendor() : id(""), name(""), imageData16x14(""), fileVersion("") {}
     ESIVendor(const std::string &id, const std::string &name)
-        : id(id), name(name) {}
+        : id(id), name(name), imageData16x14(""), fileVersion("") {}
 };
 
 // ════════════════════════════════════════════════════════════
@@ -38,8 +40,10 @@ struct ESIGroup {
     int         sortOrder;       // <Group SortOrder="520">
     std::string type;            // <Type>Drive</Type>
     std::string name;            // <Name LcId="1033">Drives</Name>
+    std::string imageData16x14;  // base64 图标（Copley/Weidmueller）
+    std::string image16x14;      // 图标引用名（Beckhoff: "TERM_SYS"）
 
-    ESIGroup() : sortOrder(0), type(""), name("") {}
+    ESIGroup() : sortOrder(0), type(""), name(""), imageData16x14(""), image16x14("") {}
 };
 
 // ════════════════════════════════════════════════════════════
@@ -361,9 +365,10 @@ struct ESIDictionary {
 struct ESIProfile {
     bool          enable;
     std::string   profileNo;     // "402"
+    std::string   addInfo;       // Weidmueller: <AddInfo>0</AddInfo>
     ESIDictionary dictionary;
 
-    ESIProfile() : enable(false), profileNo(""), dictionary() {}
+    ESIProfile() : enable(false), profileNo(""), addInfo(""), dictionary() {}
 };
 
 // ════════════════════════════════════════════════════════════
@@ -428,8 +433,10 @@ struct ESIDevice {
 // ════════════════════════════════════════════════════════════
 
 struct ESIModule {
-    // <Type ModuleIdent="#x10b00100">Cyclic position Mode</Type>
+    // <Type ModuleIdent="#x10b00100" ModuleClass="Di" ModulePdoGroup="1">Cyclic position Mode</Type>
     std::string moduleIdent;
+    std::string moduleClass;      // 模块分类（Weidmueller: "Di", "Do", "Ai", "Ao"）
+    int         modulePdoGroup;   // PDO 分组编号（Weidmueller，-1 = 不存在）
     std::string type;
 
     // <Name>Cyclic position Mode</Name>
@@ -446,7 +453,8 @@ struct ESIModule {
     ESIProfile profile;
 
     ESIModule()
-        : moduleIdent(""), type(""), name("")
+        : moduleIdent(""), moduleClass(""), modulePdoGroup(-1)
+        , type(""), name("")
         , rxpdos(), txpdos(), mailBox(), profile() {}
 };
 

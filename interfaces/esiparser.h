@@ -16,6 +16,7 @@ public:
     static ESIParser& getInstance();
 
     ECATInfo parseECATInfo(const QString& filePath);
+    ECATInfo parseEtherCATModule(const QString& filePath, QXmlStreamReader& xml);
 
 signals:
 

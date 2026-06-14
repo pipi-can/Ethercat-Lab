@@ -1,5 +1,6 @@
 #include <QGuiApplication>
 #include <QIcon>
+#include <QtQuickControls2/QQuickStyle>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 
@@ -13,6 +14,8 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
 
     app.setWindowIcon(QIcon(QStringLiteral(":/resources/MainApp/ethercat_icon.svg")));
+
+    QQuickStyle::setStyle("Fusion");
 
     QQmlApplicationEngine engine;
 

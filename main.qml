@@ -37,6 +37,10 @@ ApplicationWindow {
         anchors.right: parent.right
 
         onOpenEsiClicked: fileDialog.open()
+        onSearchRequested: function(query) {
+            var bw = pageManager.pages[0]
+            if (bw) bw.searchAndReveal(query)
+        }
     }
 
     Seprator {
@@ -148,8 +152,19 @@ ApplicationWindow {
         }
 
         console.log("Loading ESI:", path)
-        ESITreeModel.loadFile(path)
-        // TODO: Phase 1 — 调用 EsiParser 加载文件
+        var browserWidget = pageManager.pages[0]
+        browserWidget.esiTree.showLoading()
+        var success = ESITreeModel.loadFile(path)
+        browserWidget.esiTree.hideLoading()
+        if (success) {
+            // 更新标题栏文件状态
+            var fileName = path.split("/").pop().split("\\").pop()
+            appTitleBar.hasLoadedFile = true
+            appTitleBar.currentFileName = fileName
+            appTitleBar.currentFileInfo = ESITreeModel.fileCount + " file(s) loaded"
+        } else {
+            console.warn("Failed to load ESI file:", path)
+        }
     }
 
     // ════════════════════════════════════════════════════════════
@@ -161,6 +176,6 @@ ApplicationWindow {
     }
     Shortcut {
         sequence: "Ctrl+F"
-        // TODO: 聚焦搜索框
+        onActivated: appTitleBar.focusSearch()
     }
 }

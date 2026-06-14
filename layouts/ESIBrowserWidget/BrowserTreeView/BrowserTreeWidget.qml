@@ -7,7 +7,7 @@ import "../../components"
  *         参考原型 #tree-panel 实现，包含：
  *         - 顶部标题栏 "ESI EXPLORER" + 节点计数
  *         - 无文件时的空状态提示
- *         - 文件加载后的树形容器（预留）
+ *         - 多文件 TreeView（图标 + 展开箭头 + 双击详情）
  *         - 加载遮罩
  *         - 右侧拖拽调整宽度的手柄
  */
@@ -17,7 +17,15 @@ Rectangle {
     // ── 公开接口 ────────────────────────────────────────────────
     property int minimumWidth: 240
     property int maximumWidth: 450
-    property bool hasFile: false
+    property bool hasFile: ESITreeModel.hasData
+
+    // 当前选中节点（供 CenterInfoWidget 详情面板使用）
+    property var selectedProperties: ({})
+    property string selectedNodeType: ""
+    property string selectedDisplayName: ""
+    property string selectedDetail: ""
+    property int selectedRow: -1
+    signal nodeDoubleClicked(var properties, string nodeType, string displayName, string detail)
 
     // ── 外观 ────────────────────────────────────────────────────
     width: 310
@@ -66,13 +74,13 @@ Rectangle {
             font.family: "微软雅黑"
         }
 
-        // 节点计数（有文件时显示）
+        // 文件计数（有文件时显示）
         Text {
             id: nodeCountBadge
             anchors.right: parent.right
             anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
-            text: hasFile ? "" : ""
+            text: hasFile ? ESITreeModel.fileCount + " file(s)" : ""
             color: ThemeManager.current.navIconDefault   // 原型 --text-dim
             font.pixelSize: 10
             font.family: "微软雅黑"
@@ -115,7 +123,7 @@ Rectangle {
     }
 
     // ════════════════════════════════════════════════════════════
-    // 树形容器（有文件时显示，预留）
+    // 树形容器（有文件时显示）
     // ════════════════════════════════════════════════════════════
     Item {
         id: treeContainer
@@ -126,7 +134,133 @@ Rectangle {
         visible: hasFile
         clip: true
 
-        // TODO: Phase 1 — 在此添加 TreeView / ListView 渲染 ESI 树
+        TreeView {
+            id: esiTreeView
+            model: ESITreeModel
+            anchors.fill: parent
+            anchors.margins: 4
+            clip: true
+            // 禁用 rubber-band 拖拽回弹，只保留正常滚动
+            boundsBehavior: Flickable.StopAtBounds
+
+            // 右侧滚动条（透明背景 + 灰色半透明 handle）
+            ScrollBar.vertical: ScrollBar {
+                id: vBar
+                policy: ScrollBar.AsNeeded
+                width: 6
+
+                background: Item {}
+
+                contentItem: Rectangle {
+                    implicitWidth: 4
+                    implicitHeight: 20
+                    radius: 2
+                    color: vBar.pressed
+                           ? Qt.rgba(136/255, 144/255, 158/255, 0.5)
+                           : (vBar.hovered
+                              ? Qt.rgba(136/255, 144/255, 158/255, 0.35)
+                              : Qt.rgba(136/255, 144/255, 158/255, 0.18))
+                }
+            }
+
+            delegate: Item {
+                id: treeDelegate
+                implicitWidth: esiTreeView.width - 8
+                implicitHeight: 28
+
+                required property bool hasChildren
+                required property bool expanded
+                required property int depth
+                required property int row
+
+                // 行背景（hover / selected）
+                Rectangle {
+                    anchors.fill: parent
+                    color: row === root.selectedRow
+                           ? ThemeManager.current.navBgHover
+                           : "transparent"
+                }
+
+                // 缩进
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: depth * 16 + 8
+                    color: "transparent"
+                }
+
+                // 展开/折叠箭头（大两个字号：10→12）
+                Text {
+                    id: arrow
+                    anchors.left: parent.left
+                    anchors.leftMargin: depth * 16 + 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 18
+                    text: hasChildren ? (expanded ? "▾" : "▸") : ""
+                    color: ThemeManager.current.textSecondary
+                    font.pixelSize: 14
+                    visible: hasChildren
+                }
+
+                // 节点图标（原型 .tree-icon + 彩色 iconColor）
+                ColorImage {
+                    id: nodeIcon
+                    anchors.left: arrow.right
+                    anchors.leftMargin: arrow.visible ? 4 : 0
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 14
+                    height: 14
+                    source: model.iconSource ?? ""
+                    sourceColor: model.iconColor ?? ThemeManager.current.textSecondary
+                    visible: model.iconSource !== ""
+                }
+
+                // 节点名称
+                Text {
+                    anchors.left: nodeIcon.visible ? nodeIcon.right : (arrow.visible ? arrow.right : parent.left)
+                    anchors.leftMargin: {
+                        if (nodeIcon.visible) return 4
+                        if (arrow.visible) return 4
+                        return depth * 16 + 12
+                    }
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.right: parent.right
+                    anchors.rightMargin: 8
+                    text: model.display ?? ""
+                    color: ThemeManager.current.textPrimary
+                    font.pixelSize: 12
+                    font.family: "微软雅黑"
+                    elide: Text.ElideRight
+                }
+
+                // 单击展开/折叠
+                TapHandler {
+                    onTapped: {
+                        root.selectedRow = row
+                        if (treeDelegate.hasChildren) {
+                            esiTreeView.toggleExpanded(row)
+                        }
+                    }
+                }
+
+                // 双击 → 右侧详情面板
+                TapHandler {
+                    onDoubleTapped: {
+                        root.selectedRow = row
+                        var props = model.properties ?? {}
+                        var ntype = model.nodeType ?? ""
+                        var dname = model.display ?? ""
+                        var detailStr = model.detail ?? ""
+                        root.selectedProperties = props
+                        root.selectedNodeType = ntype
+                        root.selectedDisplayName = dname
+                        root.selectedDetail = detailStr
+                        root.nodeDoubleClicked(props, ntype, dname, detailStr)
+                    }
+                }
+            }
+        }
     }
 
     // ════════════════════════════════════════════════════════════
@@ -202,23 +336,21 @@ Rectangle {
     MouseArea {
         id: resizeHandle
         anchors.right: parent.right
-        anchors.rightMargin: -3           // 居中于右边缘外侧
+        anchors.rightMargin: -3
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        width: 8                          // 略宽于视觉，方便抓取
+        width: 8
         cursorShape: Qt.SplitHCursor
 
-        // 视觉指示条
         Rectangle {
             anchors.centerIn: parent
             width: 4
             height: parent.height
             color: resizeHandle.containsMouse
-                   ? ThemeManager.current.accent    // 原型 hover 效果
+                   ? ThemeManager.current.accent
                    : "transparent"
         }
 
-        // 拖拽状态
         property real startX: 0
         property real startWidth: 0
 
@@ -234,6 +366,7 @@ Rectangle {
     }
 
     // ── 公开方法 ────────────────────────────────────────────────
+
     /*
      * @brief: 显示加载状态。
      */
@@ -249,9 +382,32 @@ Rectangle {
     }
 
     /*
-     * @brief: 设置节点计数 badge。
+     * @brief: 搜索节点并跳转到匹配项。
      */
-    function setNodeCount(count) {
-        nodeCountBadge.text = count > 0 ? count + " nodes" : ""
+    function searchAndReveal(query) {
+        if (!query || query.trim() === "") return
+
+        var targetRow = ESITreeModel.findMatchRow(query.trim())
+        if (targetRow < 0) return
+
+        // 逐层展开直到目标行可见
+        var maxIter = 50
+        while (esiTreeView.rows <= targetRow && maxIter > 0) {
+            maxIter--
+            var didExpand = false
+            for (var r = 0; r < esiTreeView.rows; r++) {
+                if (!esiTreeView.isExpanded(r)) {
+                    esiTreeView.expand(r)
+                    didExpand = true
+                }
+            }
+            if (!didExpand) break
+        }
+
+        // 定位到目标行
+        if (targetRow < esiTreeView.rows) {
+            esiTreeView.positionViewAtRow(targetRow, Qt.AlignCenter)
+            root.selectedRow = targetRow
+        }
     }
 }

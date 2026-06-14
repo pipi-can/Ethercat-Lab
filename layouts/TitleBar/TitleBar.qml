@@ -8,6 +8,16 @@ Rectangle {
     id: root
 
     signal openEsiClicked()
+    signal searchRequested(string query)
+
+    // 文件状态（由 main.qml 设置）
+    property bool hasLoadedFile: false
+    property string currentFileName: ""
+    property string currentFileInfo: ""
+
+    function focusSearch() {
+        searchInput.forceActiveFocus()
+    }
 
     color: ThemeManager.current.bgTitleBar
     height: 45
@@ -64,14 +74,14 @@ Rectangle {
             id: stateIndicator
             width: 10
             height: 10
-            color: ThemeManager.current.textMuted
+            color: root.hasLoadedFile ? "#42a85f" : ThemeManager.current.textMuted
             radius: 6
             anchors.verticalCenter: parent.verticalCenter
         }
         Text {
             id: stateText
-            text: qsTr("No file selected")
-            color: ThemeManager.current.textMuted
+            text: root.hasLoadedFile ? root.currentFileName : qsTr("No file selected")
+            color: root.hasLoadedFile ? ThemeManager.current.textPrimary : ThemeManager.current.textMuted
             font.family: "微软雅黑"
             font.pixelSize: 12
             font.bold: false
@@ -92,7 +102,7 @@ Rectangle {
         }
         width: 200
         height: 30
-        placeholderText: qsTr("Search...")
+        placeholderText: qsTr("Search nodes... (Ctrl+F)")
         radius: 5
         iconSource: "qrc:/resources/TitleBar/search.svg"
         iconPosition: "left"
@@ -102,5 +112,8 @@ Rectangle {
         textFocusColor: ThemeManager.current.accent
         iconColor: ThemeManager.current.textMuted
         iconFocusColor: ThemeManager.current.accent
+
+        onTextChanged: root.searchRequested(text)
+        onAccepted: root.searchRequested(text)
     }
 }

@@ -357,6 +357,7 @@ Makefile: ../../EtherCAT-Lab.pro D:/Qt/6.5.3/mingw_64/mkspecs/win32-g++/qmake.co
 		D:/Qt/6.5.3/mingw_64/mkspecs/features/yacc.prf \
 		D:/Qt/6.5.3/mingw_64/mkspecs/features/lex.prf \
 		../../EtherCAT-Lab.pro \
+		D:/Qt/6.5.3/mingw_64/lib/Qt6QuickControls2.prl \
 		D:/Qt/6.5.3/mingw_64/lib/Qt6Quick.prl \
 		D:/Qt/6.5.3/mingw_64/lib/Qt6OpenGL.prl \
 		D:/Qt/6.5.3/mingw_64/lib/Qt6Gui.prl \
@@ -657,6 +658,7 @@ D:/Qt/6.5.3/mingw_64/mkspecs/features/exceptions.prf:
 D:/Qt/6.5.3/mingw_64/mkspecs/features/yacc.prf:
 D:/Qt/6.5.3/mingw_64/mkspecs/features/lex.prf:
 ../../EtherCAT-Lab.pro:
+D:/Qt/6.5.3/mingw_64/lib/Qt6QuickControls2.prl:
 D:/Qt/6.5.3/mingw_64/lib/Qt6Quick.prl:
 D:/Qt/6.5.3/mingw_64/lib/Qt6OpenGL.prl:
 D:/Qt/6.5.3/mingw_64/lib/Qt6Gui.prl:

@@ -67,6 +67,11 @@ Rectangle {
 
     // ── 信号 ────────────────────────────────────────────────────────────
     signal iconClicked()
+    signal accepted()
+
+    function forceActiveFocus() {
+        textField.forceActiveFocus()
+    }
 
     // ── 内部状态 ────────────────────────────────────────────────────────
     readonly property bool hasIcon: iconSource.toString() !== "" && (iconPosition === "left" || iconPosition === "right")
@@ -164,5 +169,7 @@ Rectangle {
 
         // 占位符颜色
         placeholderTextColor: focused ? placeholderFocusColor : placeholderColor
+
+        onAccepted: root.accepted()
     }
 }

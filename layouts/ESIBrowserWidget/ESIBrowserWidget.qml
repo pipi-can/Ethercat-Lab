@@ -12,6 +12,13 @@ Rectangle {
     id: root
     color: ThemeManager.current.bgWindow
 
+    // 暴露给外部（main.qml 用于 loading 控制 + 搜索）
+    property alias esiTree: esiTree
+
+    function searchAndReveal(query) {
+        esiTree.searchAndReveal(query)
+    }
+
     // 转发给 main.qml 的文件操作
     signal fileOpenRequested()
     signal fileDropped(url fileUrl)
@@ -22,6 +29,10 @@ Rectangle {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.bottom: parent.bottom
+
+        onNodeDoubleClicked: function(props, ntype, dname, detail) {
+            centerInfo.showDetail(props, ntype, dname, detail)
+        }
     }
 
     // ── 右侧：详情 ────────────────────────────────────────────
