@@ -14,5 +14,6 @@
         <file>layouts/components/qmldir</file>
         <file>layouts/NavigationBar/NavigatorBar.qml</file>
         <file>layouts/ESIBrowserWidget/ESIBrowserWidget.qml</file>
+        <file>layouts/SimulateWidget/SimulateWidget.qml</file>
     </qresource>
 </RCC>

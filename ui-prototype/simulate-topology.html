@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EtherCAT Lab — Simulation Topology Prototype</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:             #15181d;
+  --surface:        #1c1f26;
+  --surface-hover:  #252830;
+  --border:         #2a2e36;
+  --border-light:   #333844;
+  --text-primary:   #d4d7dc;
+  --text-secondary: #88909e;
+  --text-dim:       #555c69;
+  --accent:         #5294e2;
+  --accent-dim:     #1e5099;
+  --accent-bg:      rgba(82,148,226,0.08);
+  --warm:           #d4844a;
+  --warm-bg:        rgba(212,132,74,0.08);
+  --green:          #42a85f;
+  --green-bg:       rgba(66,168,95,0.08);
+  --red:            #e0554a;
+  --pink:           #d055b6;
+  --pink-bg:        rgba(208,85,182,0.08);
+  --nav-rail:       #111318;
+  --font-sans:      'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:      'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --radius-sm:      4px;
+  --radius-md:      6px;
+  --radius-lg:      10px;
+  --transition:     150ms ease;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+#app { display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+/* ============ 工具栏 ============ */
+#toolbar {
+  height: 46px; min-height: 46px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 12px; gap: 6px;
+  user-select: none;
+}
+.tool-btn {
+  height: 30px; border: none; background: transparent;
+  border-radius: var(--radius-sm); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 10px; gap: 6px;
+  transition: background var(--transition), color var(--transition);
+  font-family: var(--font-sans); font-size: 11px;
+  color: var(--text-secondary);
+}
+.tool-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+.tool-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.tool-btn.accent { background: var(--accent); color: #fff; font-weight: 600; }
+.tool-btn.accent:hover { background: #6aa3e8; }
+.tool-btn.warn { background: var(--warm); color: #fff; font-weight: 600; }
+.tool-btn.warn:hover { background: #e89a5c; }
+.tool-btn.green { background: var(--green); color: #fff; font-weight: 600; }
+.tool-btn.green:hover { background: #5abe6f; }
+
+.toolbar-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+
+#toolbarInfo { margin-right: auto; display: flex; align-items: center; gap: 14px; font-size: 11px; color: var(--text-dim); }
+#toolbarInfo .info-item { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+#toolbarInfo .info-label { color: var(--text-dim); }
+#toolbarInfo .info-val { color: var(--text-primary); font-family: var(--font-mono); font-size: 11px; }
+#toolbarInfo .info-val.state { color: var(--green); font-weight: 600; }
+
+/* ============ 主体 ============ */
+#main { flex: 1; display: flex; overflow: hidden; }
+
+/* 导航栏 */
+#nav-rail {
+  width: 48px; min-width: 48px;
+  background: var(--nav-rail);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  align-items: center; padding: 8px 0; gap: 2px;
+}
+.nav-btn {
+  width: 40px; height: 40px;
+  border: none; background: transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-dim); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--transition), color var(--transition);
+  position: relative;
+}
+.nav-btn:hover { background: var(--surface-hover); color: var(--text-secondary); }
+.nav-btn.active { background: var(--accent-dim); color: #fff; }
+.nav-btn.active::before {
+  content: ''; position: absolute; left: -4px;
+  width: 3px; height: 20px; background: var(--accent); border-radius: 0 2px 2px 0;
+}
+.nav-btn svg { width: 20px; height: 20px; }
+.nav-spacer { flex: 1; }
+.nav-btn[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute; left: 52px; top: 50%; transform: translateY(-50%);
+  background: #2a2e38; color: var(--text-primary);
+  padding: 4px 10px; border-radius: var(--radius-sm);
+  font-size: 11px; white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4); z-index: 100; pointer-events: none;
+}
+
+/* ============ 从站选择面板 (左) ============ */
+#slave-panel {
+  width: 280px; min-width: 220px; max-width: 400px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+}
+.panel-header {
+  height: 38px; min-height: 38px;
+  display: flex; align-items: center;
+  padding: 0 12px; gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-title {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.panel-badge { margin-left: auto; font-size: 10px; color: var(--text-dim); }
+
+/* 从站列表 */
+.slave-list {
+  flex: 1; overflow-y: auto; padding: 6px 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.slave-list::-webkit-scrollbar { width: 6px; }
+.slave-list::-webkit-scrollbar-track { background: transparent; }
+.slave-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.slave-item {
+  margin: 0 8px; padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: grab;
+  transition: background var(--transition), border-color var(--transition);
+  display: flex; align-items: center; gap: 10px;
+  user-select: none;
+}
+.slave-item:hover {
+  background: var(--surface-hover);
+  border-color: var(--border);
+}
+.slave-item:active { cursor: grabbing; }
+.slave-item.dragging { opacity: 0.3; }
+.slave-item.in-topology {
+  opacity: 0.5; cursor: default; pointer-events: none;
+}
+.slave-item.in-topology::after {
+  content: '✓'; margin-left: auto; color: var(--green); font-weight: bold; font-size: 13px;
+}
+
+.slave-icon {
+  width: 32px; height: 32px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.slave-icon.device { background: var(--green-bg); color: var(--green); }
+.slave-icon svg { width: 18px; height: 18px; }
+
+.slave-info { flex: 1; min-width: 0; }
+.slave-name { font-size: 12px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slave-meta { font-size: 10px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+
+/* 空状态 */
+.slave-empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 24px; text-align: center; gap: 10px;
+}
+.slave-empty svg { width: 36px; height: 36px; color: var(--text-dim); opacity: 0.4; }
+.slave-empty p { color: var(--text-dim); font-size: 11px; line-height: 1.6; }
+
+/* ============ 拓扑编辑区 (中) ============ */
+#topology-area {
+  flex: 1; display: flex; flex-direction: column;
+  background: var(--bg);
+  position: relative; overflow: hidden;
+}
+
+/* 拓扑画布 */
+#topo-canvas-wrap {
+  flex: 1; position: relative; overflow: auto;
+  background:
+    radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
+  min-height: 200px;
+}
+#topo-canvas-wrap::-webkit-scrollbar { width: 6px; height: 6px; }
+#topo-canvas-wrap::-webkit-scrollbar-track { background: transparent; }
+#topo-canvas-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+#topo-canvas {
+  position: relative;
+  width: 2000px; height: 1200px;
+}
+#topo-canvas svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+
+#topo-info {
+  height: 28px; min-height: 28px;
+  display: flex; align-items: center;
+  padding: 0 14px; gap: 6px;
+  background: var(--surface); font-size: 10px; color: var(--text-dim);
+}
+#topo-info .hint { margin-left: auto; color: var(--text-dim); font-size: 10px; }
+
+/* 拓扑节点 */
+.topo-node {
+  position: absolute; z-index: 2;
+  width: 180px; background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-lg); cursor: move;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  user-select: none;
+  animation: nodeAppear 300ms ease both;
+}
+@keyframes nodeAppear { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+.topo-node:hover { border-color: var(--accent); box-shadow: 0 4px 16px rgba(82,148,226,0.15); }
+.topo-node.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+.topo-node.master { border-color: var(--warm); }
+.topo-node.master:hover { border-color: #e89a5c; box-shadow: 0 4px 16px rgba(212,132,74,0.2); }
+.topo-node.master.selected { border-color: var(--warm); box-shadow: 0 0 0 3px var(--warm-bg); }
+.topo-node.drag-over { border-color: var(--accent); border-style: dashed; }
+
+/* 帧高亮动画 */
+.topo-node.frame-active {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 20px rgba(82,148,226,0.4) !important;
+  transition: border-color 100ms ease, box-shadow 100ms ease;
+}
+
+.topo-node-header {
+  padding: 10px 12px 8px;
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.topo-node-icon {
+  width: 22px; height: 22px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.topo-node-icon.master { background: var(--warm-bg); color: var(--warm); }
+.topo-node-icon.device { background: var(--green-bg); color: var(--green); }
+.topo-node-icon svg { width: 14px; height: 14px; }
+.topo-node-label {
+  flex: 1; min-width: 0;
+  font-size: 11px; font-weight: 600; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.topo-node-index {
+  font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);
+}
+
+.topo-node-body {
+  padding: 6px 12px 10px;
+  font-size: 10px; color: var(--text-dim);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.topo-node-body .row {
+  display: flex; justify-content: space-between;
+}
+.topo-node-body .row span:last-child { color: var(--text-secondary); font-family: var(--font-mono); }
+
+.topo-node-remove {
+  position: absolute; top: -6px; right: -6px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-dim); cursor: pointer;
+  display: none; align-items: center; justify-content: center;
+  font-size: 10px; line-height: 1;
+  transition: background var(--transition), color var(--transition);
+}
+.topo-node:hover .topo-node-remove { display: flex; }
+.topo-node-remove:hover { background: var(--red); color: #fff; border-color: var(--red); }
+
+/* 拖拽放置指示器 */
+.drop-indicator {
+  position: absolute; z-index: 1;
+  width: 4px; background: var(--accent);
+  border-radius: 2px;
+  animation: pulse 800ms ease infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* 空拓扑 */
+#topo-empty {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  color: var(--text-dim); text-align: center; z-index: 5;
+}
+#topo-empty svg { width: 56px; height: 56px; color: var(--text-dim); opacity: 0.3; }
+#topo-empty p { font-size: 12px; line-height: 1.6; }
+#topo-empty span { font-size: 10px; color: var(--text-dim); opacity: 0.6; }
+
+/* ============ 属性面板 (右) ============ */
+#props-panel {
+  width: 320px; min-width: 240px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+#props-content {
+  flex: 1; overflow-y: auto; padding: 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+#props-content::-webkit-scrollbar { width: 6px; }
+#props-content::-webkit-scrollbar-track { background: transparent; }
+#props-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.prop-hero { display: flex; align-items: center; gap: 12px; }
+.prop-hero-icon {
+  width: 42px; height: 42px; border-radius: var(--radius-lg);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.prop-hero-icon.device { background: var(--green-bg); color: var(--green); }
+.prop-hero-icon.master { background: var(--warm-bg); color: var(--warm); }
+.prop-hero-icon svg { width: 22px; height: 22px; }
+.prop-hero h3 { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+.prop-hero p { font-size: 10px; color: var(--text-dim); }
+
+.prop-card {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-md); overflow: hidden;
+}
+.prop-card-header {
+  height: 30px; display: flex; align-items: center;
+  padding: 0 10px; gap: 6px;
+  background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border);
+}
+.prop-card-header svg { width: 12px; height: 12px; color: var(--text-dim); }
+.prop-card-header span { font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; }
+.prop-row {
+  display: flex; align-items: center;
+  padding: 0 10px; height: 26px;
+  border-bottom: 1px solid rgba(42,46,54,0.3);
+  font-size: 11px;
+}
+.prop-row:last-child { border-bottom: none; }
+.prop-key { width: 100px; min-width: 100px; color: var(--text-dim); }
+.prop-val { color: var(--text-primary); font-family: var(--font-mono); font-size: 10px; }
+.prop-val.accent { color: var(--accent); }
+
+.props-empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 24px; text-align: center; gap: 10px;
+}
+.props-empty svg { width: 36px; height: 36px; color: var(--text-dim); opacity: 0.3; }
+.props-empty p { color: var(--text-dim); font-size: 11px; }
+
+/* ============ 帧结构查看器 (拓扑区底部，始终可见) ============ */
+#frame-strip {
+  height: 112px; min-height: 80px;
+  background: var(--surface);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+#frame-strip-header {
+  height: 28px; min-height: 28px;
+  display: flex; align-items: center;
+  padding: 0 14px; gap: 8px;
+  background: rgba(255,255,255,0.015);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+#frame-strip-header svg { width: 13px; height: 13px; color: var(--text-dim); flex-shrink: 0; }
+#frame-strip-header span { font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; }
+#frame-strip-header .f-legend { margin-left: auto; display: flex; gap: 10px; font-family: var(--font-sans); font-size: 10px; }
+.f-legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 3px; vertical-align: middle; }
+
+#frame-strip-body {
+  flex: 1; display: flex; overflow: hidden;
+  font-family: var(--font-mono); font-size: 11px;
+}
+
+/* 帧结构化视图 (左侧: 每个从站的字段) */
+#frame-fields {
+  flex: 1; overflow-y: auto; padding: 4px 0;
+}
+#frame-fields::-webkit-scrollbar { width: 5px; }
+#frame-fields::-webkit-scrollbar-track { background: transparent; }
+#frame-fields::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.frame-field {
+  display: flex; align-items: center; gap: 8px;
+  padding: 3px 14px; margin-bottom: 0;
+  border-left: 3px solid transparent;
+  transition: background 150ms ease, border-color 150ms ease;
+  font-size: 11px;
+}
+.frame-field:hover { background: rgba(255,255,255,0.015); }
+.frame-field.active { background: var(--accent-bg); border-left-color: var(--accent); }
+.frame-field.header-row {
+  font-weight: 600; color: var(--text-primary); padding-top: 6px; padding-bottom: 4px;
+  border-left-color: transparent !important;
+}
+.frame-field.header-row .f-offset { color: var(--warm); font-weight: 600; }
+
+.frame-field .f-offset {
+  width: 36px; min-width: 36px; color: var(--text-dim); font-size: 10px; text-align: right;
+}
+.frame-field .f-dir {
+  width: 32px; min-width: 32px; font-size: 9px; font-weight: 600;
+  text-align: center; border-radius: 3px; padding: 1px 0;
+}
+.frame-field .f-dir.rx { background: var(--accent-bg); color: var(--accent); }
+.frame-field .f-dir.tx { background: var(--green-bg); color: var(--green); }
+.frame-field .f-name {
+  min-width: 0; color: var(--text-secondary); flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.frame-field .f-value {
+  color: var(--accent); font-family: var(--font-mono); font-size: 10px; white-space: nowrap;
+}
+.frame-field .f-desc { color: var(--text-dim); font-size: 9px; white-space: nowrap; }
+
+/* 帧 hex dump (右侧，紧凑) */
+#frame-hex {
+  width: 230px; min-width: 180px;
+  overflow-y: auto; padding: 4px 8px;
+  border-left: 1px solid var(--border);
+}
+#frame-hex::-webkit-scrollbar { width: 4px; }
+#frame-hex::-webkit-scrollbar-track { background: transparent; }
+#frame-hex::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.hex-row { display: flex; gap: 2px; height: 17px; align-items: center; font-size: 10px; }
+.hex-offset { color: var(--text-dim); width: 36px; min-width: 36px; text-align: right; font-size: 9px; }
+.hex-bytes { display: flex; gap: 1px; }
+.hex-byte {
+  width: 20px; text-align: center; color: var(--text-secondary); font-size: 10px;
+  padding: 1px 0; border-radius: 2px;
+  transition: background 200ms ease, color 200ms ease;
+}
+.hex-byte.highlight-slave0 { background: rgba(212,132,74,0.25); color: var(--warm); }
+.hex-byte.highlight-slave1 { background: rgba(82,148,226,0.25); color: var(--accent); }
+.hex-byte.highlight-slave2 { background: rgba(66,168,95,0.25); color: var(--green); }
+.hex-byte.highlight-slave3 { background: rgba(208,85,182,0.25); color: var(--pink); }
+
+.frame-empty-msg {
+  padding: 20px; text-align: center; color: var(--text-dim);
+  font-size: 11px; font-family: var(--font-sans);
+}
+
+/* ============ 底部状态栏 ============ */
+#statusbar {
+  height: 26px; min-height: 26px;
+  background: var(--nav-rail); border-top: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 12px; gap: 10px;
+  font-size: 10px; color: var(--text-dim);
+}
+.status-dot { width: 7px; height: 7px; border-radius: 50%; transition: background 300ms ease; }
+.status-dot.idle { background: var(--text-dim); }
+.status-dot.ready { background: var(--green); }
+.status-dot.running { background: var(--accent); animation: pulse 1s ease infinite; }
+.status-spacer { flex: 1; }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- 工具栏 -->
+  <div id="toolbar">
+    <button class="tool-btn green" onclick="simulateRun()" id="btnRun">
+      <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Run Simulation
+    </button>
+    <button class="tool-btn warn" onclick="simulatePause()" id="btnPause" disabled>
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      Pause
+    </button>
+    <button class="tool-btn" onclick="simulateReset()" id="btnReset">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+      Reset
+    </button>
+    <div class="toolbar-sep"></div>
+    <button class="tool-btn" onclick="simulateStep()" id="btnStep">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="13" y1="2" x2="13" y2="22"/><polyline points="18 9 13 4 8 9"/></svg>
+      Step Frame
+    </button>
+    <div class="toolbar-sep"></div>
+    <div id="toolbarInfo">
+      <div class="info-item"><span class="info-label">State:</span><span class="info-val state" id="infoState">OP</span></div>
+      <div class="info-item"><span class="info-label">Cycle:</span><span class="info-val" id="infoCycle">1000 μs</span></div>
+      <div class="info-item"><span class="info-label">Slaves:</span><span class="info-val" id="infoSlaveCount">0</span></div>
+      <div class="info-item"><span class="info-label">Frame:</span><span class="info-val" id="infoFrameNum">0</span></div>
+    </div>
+  </div>
+
+  <!-- 主体 -->
+  <div id="main">
+    <!-- 导航 -->
+    <div id="nav-rail">
+      <button class="nav-btn" data-tooltip="ESI Browser" onclick="alert('切换到 ESI Browser 页面')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+      </button>
+      <button class="nav-btn active" data-tooltip="Simulation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><circle cx="6" cy="14" r="1" fill="currentColor"/><circle cx="18" cy="14" r="1" fill="currentColor"/></svg>
+      </button>
+      <div class="nav-spacer"></div>
+    </div>
+
+    <!-- 从站选择面板 -->
+    <div id="slave-panel">
+      <div class="panel-header">
+        <span class="panel-title">Available Slaves</span>
+        <span class="panel-badge" id="availCount">0 devices</span>
+      </div>
+      <div class="slave-list" id="slaveList">
+        <div class="slave-empty" id="slaveEmpty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <p>Load an ESI XML file first<br>to add slaves to the topology</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 拓扑编辑区 -->
+    <div id="topology-area">
+      <div id="topo-canvas-wrap">
+        <div id="topo-canvas">
+          <svg id="topoSvg"></svg>
+          <div id="topo-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+              <rect x="2" y="10" width="4" height="4" rx="1"/><rect x="18" y="10" width="4" height="4" rx="1"/>
+              <line x1="6" y1="12" x2="18" y2="12" stroke-dasharray="3,3"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            <p>Drag a slave from the left panel<br>or click "+" to add to the topology</p>
+            <span>EtherCAT daisy-chain topology</span>
+          </div>
+          <div class="drop-indicator" id="dropIndicator" style="display:none;"></div>
+        </div>
+      </div>
+      <div id="topo-info">
+        <span>Zoom: 100%</span>
+        <span style="margin:0 12px;color:var(--border);">│</span>
+        <span>Drag to move · Click to select · × to remove · Space to step</span>
+        <span class="hint">EtherCAT daisy-chain — frame flows left to right</span>
+      </div>
+
+      <!-- 帧结构查看器（始终可见） -->
+      <div id="frame-strip">
+        <div id="frame-strip-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          <span>Frame Structure</span>
+          <div class="f-legend" id="fLegend"></div>
+        </div>
+        <div id="frame-strip-body">
+          <div id="frame-fields"></div>
+          <div id="frame-hex"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 属性面板 -->
+    <div id="props-panel">
+      <div class="panel-header">
+        <span class="panel-title">Properties</span>
+      </div>
+      <div id="props-content">
+        <div class="props-empty" id="propsEmpty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <p>Select a slave in the topology<br>to view its properties</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 状态栏 -->
+  <div id="statusbar">
+    <div class="status-dot idle" id="statusDot"></div>
+    <span id="statusText">Ready — Load an ESI file to begin</span>
+    <div class="status-spacer"></div>
+    <span>EtherCAT Lab Simulation v0.1</span>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+ * 图标 SVG
+ * ============================================================ */
+const I = {
+  device: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+  master: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="1" width="18" height="22" rx="2"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="18" x2="12" y2="18"/></svg>`,
+  entry: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1.5"/></svg>`,
+  pdo_rx: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>`,
+  pdo_tx: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`,
+  file: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>`,
+};
+
+/* ============================================================
+ * 全局状态
+ * ============================================================ */
+let topologySlaves = [];   // [{id, name, vendor, productCode, sms, rxPdos, txPdos, ...}]
+let selectedSlaveId = null;
+let frameNumber = 0;
+let simRunning = false;
+let simTimer = null;
+let parsedEsiData = null; // loaded file data
+
+/* ============================================================
+ * 示例 ESI 数据 (无需实际文件即可体验)
+ * ============================================================ */
+const DEMO_ESI = {
+  vendor: { id: "Not loaded", name: "Demo File" },
+  devices: [
+    {
+      name: "AX5206-0000-0200",
+      type: "AX5206",
+      productCode: "#x14563002",
+      revisionNo: "#x00020000",
+      physics: "YY",
+      groupType: "Drive",
+      sms: [
+        { index: 0, name: "MBoxOut", startAddress: "#x1000", defaultSize: "128", enable: "1" },
+        { index: 1, name: "MBoxIn", startAddress: "#x1080", defaultSize: "128", enable: "1" },
+        { index: 2, name: "Outputs", startAddress: "#x1100", defaultSize: "16", enable: "1" },
+        { index: 3, name: "Inputs", startAddress: "#x1180", defaultSize: "20", enable: "1" },
+      ],
+      rxPdos: [
+        { index: "#x1600", name: "RxPDO 1", sm: "2", fixed: "0",
+          entries: [{index:"#x6040",subIndex:"0",bitLen:"16",name:"Control word",dataType:"UINT16"},
+                    {index:"#x607a",subIndex:"0",bitLen:"32",name:"Target position",dataType:"DINT"},
+                    {index:"#x6060",subIndex:"0",bitLen:"8",name:"Modes of operation",dataType:"SINT"}]},
+      ],
+      txPdos: [
+        { index: "#x1a00", name: "TxPDO 1", sm: "3", fixed: "0",
+          entries: [{index:"#x6041",subIndex:"0",bitLen:"16",name:"Status word",dataType:"UINT16"},
+                    {index:"#x6064",subIndex:"0",bitLen:"32",name:"Position actual value",dataType:"DINT"},
+                    {index:"#x6061",subIndex:"0",bitLen:"8",name:"Modes of operation display",dataType:"SINT"}]},
+      ],
+      mailbox: { coe: true, sdoInfo: true, pdoAssign: true },
+      dc: { name: "DC Sync", assignActivate: "#x0300", cycleTimeSync0: "1000000" },
+    },
+    {
+      name: "EL7201-0010",
+      type: "EL7201",
+      productCode: "#x1c213052",
+      revisionNo: "#x00200000",
+      physics: "YY",
+      groupType: "Drive",
+      sms: [
+        { index: 0, name: "MBoxOut", startAddress: "#x1000", defaultSize: "64", enable: "1" },
+        { index: 1, name: "MBoxIn", startAddress: "#x1080", defaultSize: "64", enable: "1" },
+        { index: 2, name: "Outputs", startAddress: "#x1100", defaultSize: "8", enable: "1" },
+        { index: 3, name: "Inputs", startAddress: "#x1180", defaultSize: "12", enable: "1" },
+      ],
+      rxPdos: [
+        { index: "#x1600", name: "RxPDO 1", sm: "2", fixed: "0",
+          entries: [{index:"#x6040",subIndex:"0",bitLen:"16",name:"Control word",dataType:"UINT16"},
+                    {index:"#x60ff",subIndex:"0",bitLen:"32",name:"Target velocity",dataType:"DINT"}]},
+      ],
+      txPdos: [
+        { index: "#x1a00", name: "TxPDO 1", sm: "3", fixed: "0",
+          entries: [{index:"#x6041",subIndex:"0",bitLen:"16",name:"Status word",dataType:"UINT16"},
+                    {index:"#x606c",subIndex:"0",bitLen:"32",name:"Velocity actual value",dataType:"DINT"}]},
+      ],
+      mailbox: { coe: true, sdoInfo: true },
+      dc: null,
+    },
+    {
+      name: "EL1008",
+      type: "EL1008",
+      productCode: "#x03f03052",
+      revisionNo: "#x00100000",
+      physics: "YY",
+      groupType: "DigInput",
+      sms: [
+        { index: 0, name: "MBoxOut", startAddress: "#x1000", defaultSize: "64", enable: "1" },
+        { index: 1, name: "MBoxIn", startAddress: "#x1080", defaultSize: "64", enable: "1" },
+        { index: 2, name: "Outputs", startAddress: "#x1100", defaultSize: "0", enable: "0" },
+        { index: 3, name: "Inputs", startAddress: "#x1180", defaultSize: "1", enable: "1" },
+      ],
+      rxPdos: [],
+      txPdos: [
+        { index: "#x1a00", name: "TxPDO 1", sm: "3", fixed: "1",
+          entries: [{index:"#x6000",subIndex:"1",bitLen:"1",name:"Input 1",dataType:"BOOL"},
+                    {index:"#x6000",subIndex:"2",bitLen:"1",name:"Input 2",dataType:"BOOL"},
+                    {index:"#x6000",subIndex:"3",bitLen:"1",name:"Input 3",dataType:"BOOL"},
+                    {index:"#x6000",subIndex:"4",bitLen:"1",name:"Input 4",dataType:"BOOL"},
+                    {index:"#x6000",subIndex:"5",bitLen:"1",name:"Input 5",dataType:"BOOL"},
+                    {index:"#x6000",subIndex:"6",bitLen:"1",name:"Input 6",dataType:"BOOL"},
+                    {index:"#x6000",subIndex:"7",bitLen:"1",name:"Input 7",dataType:"BOOL"},
+                    {index:"#x6000",subIndex:"8",bitLen:"1",name:"Input 8",dataType:"BOOL"}]},
+      ],
+      mailbox: { coe: false },
+      dc: null,
+    },
+  ],
+};
+
+/* ============================================================
+ * 渲染从站列表
+ * ============================================================ */
+function renderSlaveList() {
+  const container = document.getElementById("slaveList");
+  const empty = document.getElementById("slaveEmpty");
+  if (!parsedEsiData || !parsedEsiData.devices.length) {
+    container.innerHTML = "";
+    container.appendChild(empty);
+    empty.style.display = "flex";
+    document.getElementById("availCount").textContent = "0 devices";
+    return;
+  }
+
+  empty.style.display = "none";
+  document.getElementById("availCount").textContent = parsedEsiData.devices.length + " devices";
+
+  const topoNames = new Set(topologySlaves.map(s => s.esiRef));
+  let html = "";
+  parsedEsiData.devices.forEach((dev, i) => {
+    const ref = dev.name + "_" + i;
+    const inTopo = topoNames.has(ref);
+    html += `<div class="slave-item${inTopo?' in-topology':''}" draggable="${!inTopo}"
+      data-esi-index="${i}" data-esi-ref="${ref}"
+      ondragstart="onSlaveDragStart(event, ${i}, '${ref}')">
+      <div class="slave-icon device">${I.device}</div>
+      <div class="slave-info">
+        <div class="slave-name">${esc(dev.name)}</div>
+        <div class="slave-meta">${esc(dev.type)} · SM:${dev.sms.length} · Rx:${dev.rxPdos.length} · Tx:${dev.txPdos.length}</div>
+      </div>
+      <button class="tool-btn" style="padding:2px 6px;font-size:16px;flex-shrink:0;" title="Add to Topology"
+        onclick="addSlaveToTopology(${i});event.stopPropagation();" ${inTopo?'disabled':''}>+</button>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+/* ============================================================
+ * 拓扑操作
+ * ============================================================ */
+function addSlaveToTopology(esiIndex) {
+  if (!parsedEsiData) return;
+  const dev = parsedEsiData.devices[esiIndex];
+  const ref = dev.name + "_" + esiIndex;
+  if (topologySlaves.find(s => s.esiRef === ref)) return;
+
+  const sid = "slave_" + Date.now();
+  const slave = {
+    id: sid,
+    esiRef: ref,
+    name: dev.name,
+    type: dev.type,
+    productCode: dev.productCode,
+    vendor: parsedEsiData.vendor.name,
+    sms: dev.sms,
+    rxPdos: dev.rxPdos,
+    txPdos: dev.txPdos,
+    mailbox: dev.mailbox,
+    dc: dev.dc,
+    x: 0, y: 0,
+    frameOffset: 0,
+    frameSize: 0,
+  };
+
+  // 计算帧偏移
+  computeFrameLayout();
+
+  topologySlaves.push(slave);
+  layoutTopology();
+  renderSlaveList();
+  updateInfo();
+  updateTopoCanvas();
+}
+
+function removeSlaveFromTopology(slaveId) {
+  topologySlaves = topologySlaves.filter(s => s.id !== slaveId);
+  if (selectedSlaveId === slaveId) {
+    selectedSlaveId = null;
+    showPropsEmpty();
+  }
+  computeFrameLayout();
+  layoutTopology();
+  renderSlaveList();
+  updateInfo();
+  updateTopoCanvas();
+}
+
+function computeFrameLayout() {
+  let offset = 0;
+  topologySlaves.forEach((s, i) => {
+    s.frameOffset = offset;
+    let sz = 0;
+    s.rxPdos.forEach(p => p.entries.forEach(e => { sz += parseInt(e.bitLen) || 0; }));
+    s.txPdos.forEach(p => p.entries.forEach(e => { sz += parseInt(e.bitLen) || 0; }));
+    s.frameSize = Math.max(1, Math.ceil(sz / 8));
+    offset += s.frameSize;
+  });
+}
+
+function layoutTopology() {
+  const startX = 80, y = 100, gapX = 220, gapY = 160;
+  const cols = Math.max(1, Math.floor((document.getElementById("topo-canvas-wrap").clientWidth - 200) / gapX));
+
+  // Master node (fixed)
+  const master = { x: startX, y: y, id: "master" };
+
+  topologySlaves.forEach((s, i) => {
+    const col = i % cols, row = Math.floor(i / cols);
+    s.x = startX + 160 + col * gapX;
+    s.y = y + row * gapY;
+  });
+}
+
+/* ============================================================
+ * 渲染拓扑画布
+ * ============================================================ */
+function updateTopoCanvas() {
+  const canvas = document.getElementById("topo-canvas");
+  const svg = document.getElementById("topoSvg");
+  const empty = document.getElementById("topo-empty");
+
+  // 清除旧节点
+  canvas.querySelectorAll(".topo-node").forEach(n => n.remove());
+
+  // 空拓扑
+  if (topologySlaves.length === 0) {
+    empty.style.display = "flex";
+    svg.innerHTML = "";
+    updateFrameViewer();
+    return;
+  }
+  empty.style.display = "none";
+
+  // Master node
+  const masterX = 80, masterY = 100;
+  const masterEl = createMasterNode(masterX, masterY);
+  canvas.appendChild(masterEl);
+
+  // Slave nodes
+  topologySlaves.forEach((s, i) => {
+    const el = createSlaveNode(s, i);
+    canvas.appendChild(el);
+  });
+
+  // 连线
+  drawConnections(svg, masterX, masterY);
+
+  updateFrameViewer();
+}
+
+function createMasterNode(x, y) {
+  const el = document.createElement("div");
+  el.className = "topo-node master" + (selectedSlaveId === "master" ? " selected" : "");
+  el.style.left = x + "px"; el.style.top = y + "px";
+  el.setAttribute("data-id", "master");
+
+  el.innerHTML = `
+    <div class="topo-node-header">
+      <div class="topo-node-icon master">${I.master}</div>
+      <div class="topo-node-label">EtherCAT Master</div>
+      <div class="topo-node-index">#0</div>
+    </div>
+    <div class="topo-node-body">
+      <div class="row"><span>Port</span><span>MII</span></div>
+      <div class="row"><span>Cycle</span><span>1000 μs</span></div>
+      <div class="row"><span>DC</span><span>Enabled</span></div>
+    </div>`;
+
+  el.onclick = (e) => { e.stopPropagation(); selectNode("master"); };
+  el.onmousedown = (e) => { if (e.target.closest(".topo-node-remove")) return; startDragNode(e, "master"); };
+  return el;
+}
+
+function createSlaveNode(slave, index) {
+  const el = document.createElement("div");
+  el.className = "topo-node" + (selectedSlaveId === slave.id ? " selected" : "");
+  el.style.left = slave.x + "px"; el.style.top = slave.y + "px";
+  el.setAttribute("data-id", slave.id);
+
+  const smOut = slave.sms.filter(s => s.name.toLowerCase().includes("output") || parseInt(s.index) === 2).length;
+  const smIn = slave.sms.filter(s => s.name.toLowerCase().includes("input") || parseInt(s.index) === 3).length;
+
+  el.innerHTML = `
+    <div class="topo-node-header">
+      <div class="topo-node-icon device">${I.device}</div>
+      <div class="topo-node-label">${esc(slave.name)}</div>
+      <div class="topo-node-index">#${index + 1}</div>
+    </div>
+    <div class="topo-node-body">
+      <div class="row"><span>Type</span><span>${esc(slave.type)}</span></div>
+      <div class="row"><span>SM</span><span>${slave.sms.length} (${smOut} out / ${smIn} in)</span></div>
+      <div class="row"><span>PDO</span><span>Rx:${slave.rxPdos.length} / Tx:${slave.txPdos.length}</span></div>
+      <div class="row"><span>Frame</span><span>${slave.frameSize}B @ offset ${slave.frameOffset}</span></div>
+    </div>
+    <div class="topo-node-remove" onclick="removeSlaveFromTopology('${slave.id}')">×</div>`;
+
+  el.onclick = (e) => { e.stopPropagation(); selectNode(slave.id); };
+  el.onmousedown = (e) => { if (e.target.closest(".topo-node-remove")) return; startDragNode(e, slave.id); };
+
+  // 拖放重排
+  el.ondragover = (e) => { e.preventDefault(); e.stopPropagation(); };
+  el.ondrop = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const dragId = e.dataTransfer.getData("text/reorder");
+    if (dragId && dragId !== slave.id) {
+      reorderSlaves(dragId, slave.id);
+    }
+  };
+
+  return el;
+}
+
+function drawConnections(svgEl, masterX, masterY) {
+  if (topologySlaves.length === 0) { svgEl.innerHTML = ""; return; }
+
+  let html = "";
+  const allNodes = [{ x: masterX, y: masterY, id: "master" }, ...topologySlaves];
+
+  for (let i = 0; i < allNodes.length - 1; i++) {
+    const from = allNodes[i], to = allNodes[i + 1];
+    const x1 = from.x + 180, y1 = from.y + 60;
+    const x2 = to.x, y2 = to.y + 60;
+    const mx = (x1 + x2) / 2;
+
+    // 箭头连线
+    html += `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2 - 12},${y2}"
+      fill="none" stroke="#5294e2" stroke-width="2" stroke-dasharray="6,3" opacity="0.5"/>
+      <polygon points="${x2 - 4},${y2 - 5} ${x2 + 8},${y2} ${x2 - 4},${y2 + 5}"
+      fill="#5294e2" opacity="0.6"/>`;
+
+    // 方向标签
+    html += `<text x="${mx}" y="${y1 - 8}" fill="#88909e" font-size="9" text-anchor="middle" font-family="var(--font-sans)">Frame →</text>`;
+  }
+
+  svgEl.innerHTML = html;
+}
+
+/* ============================================================
+ * 拖拽相关
+ * ============================================================ */
+function onSlaveDragStart(e, esiIndex, ref) {
+  e.dataTransfer.setData("text/esi-index", String(esiIndex));
+  e.dataTransfer.effectAllowed = "copy";
+  e.target.classList.add("dragging");
+  e.target.addEventListener("dragend", () => { e.target.classList.remove("dragging"); }, { once: true });
+}
+
+// Canvas drop
+document.getElementById("topo-canvas-wrap").addEventListener("dragover", function(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "copy";
+});
+
+document.getElementById("topo-canvas-wrap").addEventListener("drop", function(e) {
+  e.preventDefault();
+  const idx = parseInt(e.dataTransfer.getData("text/esi-index"));
+  if (!isNaN(idx)) addSlaveToTopology(idx);
+});
+
+// 节点拖拽移动
+let dragInfo = null;
+
+function startDragNode(e, id) {
+  dragInfo = { id, sx: e.clientX, sy: e.clientY, ox: 0, oy: 0 };
+  const nodeEl = document.querySelector(`.topo-node[data-id="${id}"]`);
+  if (nodeEl) {
+    dragInfo.ox = parseInt(nodeEl.style.left) || 0;
+    dragInfo.oy = parseInt(nodeEl.style.top) || 0;
+  }
+
+  const onMove = (ev) => {
+    if (!dragInfo) return;
+    const dx = ev.clientX - dragInfo.sx, dy = ev.clientY - dragInfo.sy;
+    const nx = Math.max(0, dragInfo.ox + dx), ny = Math.max(0, dragInfo.oy + dy);
+
+    if (id === "master") {
+      // Master不可移动
+    } else {
+      const slave = topologySlaves.find(s => s.id === id);
+      if (slave) { slave.x = nx; slave.y = ny; }
+    }
+    updateTopoCanvas();
+  };
+
+  const onUp = () => {
+    dragInfo = null;
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+  };
+
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
+
+function reorderSlaves(fromId, toId) {
+  const fromIdx = topologySlaves.findIndex(s => s.id === fromId);
+  const toIdx = topologySlaves.findIndex(s => s.id === toId);
+  if (fromIdx < 0 || toIdx < 0) return;
+  const [moved] = topologySlaves.splice(fromIdx, 1);
+  topologySlaves.splice(toIdx, 0, moved);
+  computeFrameLayout();
+  layoutTopology();
+  updateTopoCanvas();
+  updateInfo();
+}
+
+/* ============================================================
+ * 选中 & 属性面板
+ * ============================================================ */
+function selectNode(id) {
+  selectedSlaveId = id;
+  updateTopoCanvas();
+
+  const propsContent = document.getElementById("props-content");
+  const propsEmpty = document.getElementById("propsEmpty");
+
+  if (id === "master") {
+    propsEmpty.style.display = "none";
+    propsContent.innerHTML = `
+      <div class="prop-hero">
+        <div class="prop-hero-icon master">${I.master}</div>
+        <div><h3>EtherCAT Master</h3><p>Software Master · Port: MII</p></div>
+      </div>
+      <div class="prop-card">
+        <div class="prop-card-header">${I.device}<span>Master Configuration</span></div>
+        <div class="prop-row"><span class="prop-key">Cycle Time</span><span class="prop-val accent">1000 μs</span></div>
+        <div class="prop-row"><span class="prop-key">DC Mode</span><span class="prop-val">Enabled</span></div>
+        <div class="prop-row"><span class="prop-key">Frame Size</span><span class="prop-val">${computeTotalFrameSize()} bytes</span></div>
+        <div class="prop-row"><span class="prop-key">Slaves Attached</span><span class="prop-val accent">${topologySlaves.length}</span></div>
+      </div>`;
+    return;
+  }
+
+  const slave = topologySlaves.find(s => s.id === id);
+  if (!slave) { showPropsEmpty(); return; }
+
+  propsEmpty.style.display = "none";
+
+  let smRows = slave.sms.map(s => `<div class="prop-row"><span class="prop-key">SM${s.index}</span><span class="prop-val">${esc(s.name)} · ${s.defaultSize}B</span></div>`).join("");
+
+  let rxPdoRows = "";
+  slave.rxPdos.forEach(p => {
+    p.entries.forEach(e => {
+      rxPdoRows += `<div class="prop-row"><span class="prop-key">${esc(e.index)}:${e.subIndex}</span><span class="prop-val">${esc(e.name||'—')} · ${e.bitLen}b · ${esc(e.dataType)}</span></div>`;
+    });
+  });
+
+  let txPdoRows = "";
+  slave.txPdos.forEach(p => {
+    p.entries.forEach(e => {
+      txPdoRows += `<div class="prop-row"><span class="prop-key">${esc(e.index)}:${e.subIndex}</span><span class="prop-val">${esc(e.name||'—')} · ${e.bitLen}b · ${esc(e.dataType)}</span></div>`;
+    });
+  });
+
+  propsContent.innerHTML = `
+    <div class="prop-hero">
+      <div class="prop-hero-icon device">${I.device}</div>
+      <div><h3>${esc(slave.name)}</h3><p>${esc(slave.type)} · ${esc(slave.vendor)}</p></div>
+    </div>
+    <div class="prop-card">
+      <div class="prop-card-header">${I.device}<span>Device Info</span></div>
+      <div class="prop-row"><span class="prop-key">Product Code</span><span class="prop-val accent">${esc(slave.productCode)}</span></div>
+      <div class="prop-row"><span class="prop-key">Frame Offset</span><span class="prop-val">${slave.frameOffset} bytes</span></div>
+      <div class="prop-row"><span class="prop-key">Frame Size</span><span class="prop-val">${slave.frameSize} bytes</span></div>
+      <div class="prop-row"><span class="prop-key">CoE</span><span class="prop-val" style="color:${slave.mailbox?.coe?'var(--green)':'var(--text-dim)'}">${slave.mailbox?.coe?'Supported':'No'}</span></div>
+      <div class="prop-row"><span class="prop-key">DC</span><span class="prop-val" style="color:${slave.dc?'var(--green)':'var(--text-dim)'}">${slave.dc?slave.dc.name:'Not supported'}</span></div>
+    </div>
+    ${smRows ? `<div class="prop-card"><div class="prop-card-header">${I.pdo_rx}<span>SyncManagers</span></div>${smRows}</div>` : ''}
+    ${rxPdoRows ? `<div class="prop-card"><div class="prop-card-header">${I.pdo_rx}<span>RxPDO Entries</span></div>${rxPdoRows}</div>` : ''}
+    ${txPdoRows ? `<div class="prop-card"><div class="prop-card-header">${I.pdo_tx}<span>TxPDO Entries</span></div>${txPdoRows}</div>` : ''}`;
+}
+
+function showPropsEmpty() {
+  document.getElementById("propsContent").innerHTML = `
+    <div class="props-empty" id="propsEmpty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <p>Select a slave in the topology<br>to view its properties</p>
+    </div>`;
+}
+
+/* ============================================================
+ * 帧查看器
+ * ============================================================ */
+function computeTotalFrameSize() {
+  let sz = 0;
+  topologySlaves.forEach(s => sz += s.frameSize);
+  return sz;
+}
+
+function updateFrameViewer() {
+  const hexEl = document.getElementById("frame-hex");
+  const fieldsEl = document.getElementById("frame-fields");
+  const legendEl = document.getElementById("fLegend");
+
+  if (topologySlaves.length === 0) {
+    hexEl.innerHTML = `<div class="frame-empty-msg">No slaves</div>`;
+    fieldsEl.innerHTML = `<div class="frame-empty-msg">Add slaves to see frame structure</div>`;
+    legendEl.innerHTML = "";
+    return;
+  }
+
+  const slaveColors = [
+    { bg: "rgba(212,132,74,0.25)", fg: "#d4844a", label: "#d4844a" },
+    { bg: "rgba(82,148,226,0.25)", fg: "#5294e2", label: "#5294e2" },
+    { bg: "rgba(66,168,95,0.25)", fg: "#42a85f", label: "#42a85f" },
+    { bg: "rgba(208,85,182,0.25)", fg: "#d055b6", label: "#d055b6" },
+    { bg: "rgba(136,144,158,0.2)", fg: "#88909e", label: "#88909e" },
+  ];
+
+  // Legend
+  legendEl.innerHTML = topologySlaves.map((s, i) =>
+    `<span><span class="f-legend-dot" style="background:${slaveColors[i%5].label};"></span>Slave #${i+1}</span>`
+  ).join("");
+
+  // Build byte array
+  const bytes = [];
+  topologySlaves.forEach((s, si) => {
+    s.rxPdos.forEach(p => p.entries.forEach(e => {
+      const b = Math.max(1, Math.ceil(parseInt(e.bitLen) / 8));
+      for (let i = 0; i < b; i++) bytes.push({ byte: "00", slaveIdx: si });
+    }));
+    s.txPdos.forEach(p => p.entries.forEach(e => {
+      const b = Math.max(1, Math.ceil(parseInt(e.bitLen) / 8));
+      for (let i = 0; i < b; i++) bytes.push({ byte: "00", slaveIdx: si });
+    }));
+  });
+
+  // Hex dump
+  let hexHtml = "";
+  const bytesPerRow = 16;
+  for (let r = 0; r < bytes.length; r += bytesPerRow) {
+    const offs = r.toString(16).toUpperCase().padStart(4, "0");
+    let bhtml = "";
+    for (let c = 0; c < bytesPerRow; c++) {
+      const idx = r + c;
+      const cls = idx < bytes.length ? `highlight-slave${bytes[idx].slaveIdx % 4}` : "";
+      bhtml += `<span class="hex-byte ${cls}">${idx < bytes.length ? bytes[idx].byte : '··'}</span>`;
+    }
+    hexHtml += `<div class="hex-row"><span class="hex-offset">${offs}</span><div class="hex-bytes">${bhtml}</div></div>`;
+  }
+  hexEl.innerHTML = hexHtml;
+
+  // Structured fields
+  let html = "";
+  let byteOff = 0;
+  topologySlaves.forEach((s, si) => {
+    const c = slaveColors[si % 5];
+    html += `<div class="frame-field header-row" style="border-left-color:${c.label};">
+      <span class="f-offset" style="color:${c.label};">[#${si + 1}]</span>
+      <span class="f-dir" style="color:${c.label};">──</span>
+      <span class="f-name" style="color:${c.label};">${esc(s.name)}</span>
+      <span class="f-value" style="color:${c.label};">offs=${s.frameOffset}·${s.frameSize}B</span>
+      <span class="f-desc">${esc(s.type)}</span></div>`;
+
+    s.rxPdos.forEach(p => p.entries.forEach(e => {
+      html += `<div class="frame-field">
+        <span class="f-offset">${byteOff}</span>
+        <span class="f-dir rx">Rx</span>
+        <span class="f-name">${esc(e.index)}:${e.subIndex} ${esc(e.name||'—')}</span>
+        <span class="f-value">${e.bitLen}b</span>
+        <span class="f-desc">${esc(e.dataType)}</span></div>`;
+      byteOff += Math.max(1, Math.ceil(parseInt(e.bitLen) / 8));
+    }));
+    s.txPdos.forEach(p => p.entries.forEach(e => {
+      html += `<div class="frame-field">
+        <span class="f-offset">${byteOff}</span>
+        <span class="f-dir tx">Tx</span>
+        <span class="f-name">${esc(e.index)}:${e.subIndex} ${esc(e.name||'—')}</span>
+        <span class="f-value">${e.bitLen}b</span>
+        <span class="f-desc">${esc(e.dataType)}</span></div>`;
+      byteOff += Math.max(1, Math.ceil(parseInt(e.bitLen) / 8));
+    }));
+  });
+  fieldsEl.innerHTML = html;
+}
+
+/* ============================================================
+ * 仿真控制
+ * ============================================================ */
+let activeFrameSlaveIdx = -1;
+
+function simulateRun() {
+  if (simRunning) return;
+  if (topologySlaves.length === 0) { alert("Please add at least one slave to the topology first."); return; }
+  simRunning = true;
+  document.getElementById("btnRun").disabled = true;
+  document.getElementById("btnPause").disabled = false;
+  document.getElementById("statusDot").className = "status-dot running";
+  document.getElementById("statusText").textContent = "Simulation running...";
+
+  activeFrameSlaveIdx = 0;
+  highlightSlave(0);
+
+  simTimer = setInterval(() => {
+    activeFrameSlaveIdx++;
+    if (activeFrameSlaveIdx > topologySlaves.length) activeFrameSlaveIdx = 0;
+    highlightSlave(activeFrameSlaveIdx);
+    frameNumber++;
+    document.getElementById("infoFrameNum").textContent = frameNumber;
+  }, 500);
+}
+
+function simulatePause() {
+  simRunning = false;
+  clearInterval(simTimer);
+  document.getElementById("btnRun").disabled = false;
+  document.getElementById("btnPause").disabled = true;
+  document.getElementById("statusDot").className = "status-dot ready";
+  document.getElementById("statusText").textContent = "Simulation paused · " + topologySlaves.length + " slave(s)";
+  clearHighlights();
+}
+
+function simulateReset() {
+  simulatePause();
+  frameNumber = 0;
+  activeFrameSlaveIdx = -1;
+  document.getElementById("infoFrameNum").textContent = "0";
+  document.getElementById("statusDot").className = "status-dot ready";
+  document.getElementById("statusText").textContent = "Ready · " + topologySlaves.length + " slave(s)";
+  clearHighlights();
+}
+
+function simulateStep() {
+  if (topologySlaves.length === 0) return;
+  activeFrameSlaveIdx++;
+  if (activeFrameSlaveIdx > topologySlaves.length) activeFrameSlaveIdx = 0;
+  highlightSlave(activeFrameSlaveIdx);
+  frameNumber++;
+  document.getElementById("infoFrameNum").textContent = frameNumber;
+}
+
+function highlightSlave(idx) {
+  clearHighlights();
+  if (idx <= 0) {
+    // Master
+    const m = document.querySelector('.topo-node.master');
+    if (m) m.classList.add("frame-active");
+  } else if (idx <= topologySlaves.length) {
+    const slave = topologySlaves[idx - 1];
+    const el = document.querySelector(`.topo-node[data-id="${slave.id}"]`);
+    if (el) el.classList.add("frame-active");
+  }
+}
+
+function clearHighlights() {
+  document.querySelectorAll(".topo-node.frame-active").forEach(n => n.classList.remove("frame-active"));
+}
+
+/* ============================================================
+ * 界面更新
+ * ============================================================ */
+function updateInfo() {
+  document.getElementById("infoSlaveCount").textContent = topologySlaves.length;
+}
+
+/* ============================================================
+ * 演示模式：加载内置示例数据
+ * ============================================================ */
+function loadDemoData() {
+  parsedEsiData = DEMO_ESI;
+  renderSlaveList();
+  document.getElementById("statusDot").className = "status-dot ready";
+  document.getElementById("statusText").textContent = "Demo data loaded · " + DEMO_ESI.devices.length + " device(s)";
+
+  // 自动添加前两个从站
+  addSlaveToTopology(0);
+  addSlaveToTopology(1);
+}
+
+/* ============================================================
+ * 工具函数
+ * ============================================================ */
+function esc(s) { if (!s) return ''; const d = document.createElement("span"); d.textContent = s; return d.innerHTML; }
+
+/* ============================================================
+ * 初始化
+ * ============================================================ */
+(function init() {
+  // 加载演示数据
+  loadDemoData();
+
+  // 点击画布空白区域取消选中
+  document.getElementById("topo-canvas-wrap").addEventListener("click", function(e) {
+    if (e.target === this || e.target.id === "topo-canvas") {
+      selectNode("master");
+    }
+  });
+
+  // 快捷键
+  document.addEventListener("keydown", e => {
+    if ((e.ctrlKey||e.metaKey) && e.key === "r") { e.preventDefault(); simulateRun(); }
+    if (e.key === " ") { e.preventDefault(); if (simRunning) simulatePause(); else simulateStep(); }
+    if (e.key === "Delete" && selectedSlaveId && selectedSlaveId !== "master") {
+      removeSlaveFromTopology(selectedSlaveId);
+    }
+  });
+})();
+</script>
+</body>
+</html>

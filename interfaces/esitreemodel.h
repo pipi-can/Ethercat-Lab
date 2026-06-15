@@ -48,6 +48,9 @@ public:
     Q_INVOKABLE bool loadFile(const QString& filePath);
     Q_INVOKABLE int findMatchRow(const QString& query) const;
 
+    // 仿真页面用 — 返回所有已加载文件的 Device 数据
+    Q_INVOKABLE QVariantList getLoadedDevices() const;
+
 signals:
     void hasDataChanged();
     void fileCountChanged();

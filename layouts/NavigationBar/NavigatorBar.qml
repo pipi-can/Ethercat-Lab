@@ -104,16 +104,9 @@ Rectangle {
             iconHeight: 22
         }
         ListElement {
-            name: "Object Dictionary"
-            tooltip: "Object Dictionary"
-            iconSource: "qrc:/resources/NavigatorBar/dictionary.svg"
-            iconWidth: 22
-            iconHeight: 22
-        }
-        ListElement {
-            name: "PDO Mapping"
-            tooltip: "PDO Mapping"
-            iconSource: "qrc:/resources/NavigatorBar/mapping.svg"
+            name: "Simulate"
+            tooltip: "Simulate"
+            iconSource: "qrc:/resources/NavigatorBar/simulate.svg"
             iconWidth: 18
             iconHeight: 18
         }

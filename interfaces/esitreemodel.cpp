@@ -465,6 +465,53 @@ int ESITreeModel::findMatchRow(const QString &query) const
 }
 
 // ════════════════════════════════════════════════════════════
+// getLoadedDevices — 供仿真页面左侧面板用，返回所有已加载设备的基本信息
+// ════════════════════════════════════════════════════════════
+
+QVariantList ESITreeModel::getLoadedDevices() const
+{
+    QVariantList result;
+
+    for (size_t fi = 0; fi < m_loadedFiles.size(); ++fi) {
+        const auto& info = m_loadedFiles[fi];
+
+        for (size_t di = 0; di < info.devices.size(); ++di) {
+            const auto& dev = info.devices[di];
+            QVariantMap dm;
+            dm["name"]        = QString::fromStdString(dev.name);
+            dm["type"]        = QString::fromStdString(dev.type);
+            dm["productCode"] = QString::fromStdString(dev.productCode);
+            dm["vendorName"]  = QString::fromStdString(info.vendor.name);
+            dm["smCount"]     = static_cast<int>(dev.syncManagers.size());
+            dm["rxCount"]     = static_cast<int>(dev.rxpdos.size());
+            dm["txCount"]     = static_cast<int>(dev.txpdos.size());
+            dm["hasCoe"]      = dev.mailBox.coe;
+            dm["hasDc"]       = !dev.dcOpModes.empty();
+            result.append(dm);
+        }
+
+        // 只有纯模块化格式（如 Weidmueller UR20_IO）才列 Module
+        if (info.devices.empty()) {
+            for (size_t mi = 0; mi < info.modules.size(); ++mi) {
+                const auto& mod = info.modules[mi];
+                QVariantMap dm;
+                dm["name"]       = QString::fromStdString(mod.name);
+                dm["type"]       = QString::fromStdString(mod.type);
+                dm["vendorName"] = QString::fromStdString(info.vendor.name);
+                dm["smCount"]    = 0;
+                dm["rxCount"]    = static_cast<int>(mod.rxpdos.size());
+                dm["txCount"]    = static_cast<int>(mod.txpdos.size());
+                dm["hasCoe"]     = mod.mailBox.coe;
+                dm["hasDc"]      = false;
+                result.append(dm);
+            }
+        }
+    }
+
+    return result;
+}
+
+// ════════════════════════════════════════════════════════════
 // makeItem — 统一工厂，带图标 & 属性
 // ════════════════════════════════════════════════════════════
 

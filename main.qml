@@ -6,29 +6,22 @@ import QtQuick.Dialogs
 import "./layouts/TitleBar"
 import "./layouts/NavigationBar"
 import "./layouts/ESIBrowserWidget"
+import "./layouts/SimulateWidget"
 import "./layouts/components"
 
 ApplicationWindow {
     id: mainWindow
     visible: true
-    width: 1000
-    height: 680
+    width: 1200
+    height: 800
     minimumWidth: 960
     minimumHeight: 600
     title: "EtherCAT Lab"
     x: Screen.width / 2 - width / 2
     y: Screen.height / 2 - height / 2
 
-    Item {
-        id: controller
-        states: [
-            State { name: "no-file" },
-            State { name: "file-selected" }
-        ]
-    }
-
     // ════════════════════════════════════════════════════════════
-    // 标题栏
+    // 标题栏 — 显式状态切换
     // ════════════════════════════════════════════════════════════
     TitleBar {
         id: appTitleBar
@@ -36,10 +29,11 @@ ApplicationWindow {
         anchors.left: parent.left
         anchors.right: parent.right
 
+        state: "esi"   // 初始状态
+
         onOpenEsiClicked: fileDialog.open()
         onSearchRequested: function(query) {
-            var bw = pageManager.pages[0]
-            if (bw) bw.searchAndReveal(query)
+            if (esiPage.visible && esiPage) esiPage.searchAndReveal(query)
         }
     }
 
@@ -53,7 +47,7 @@ ApplicationWindow {
     }
 
     // ════════════════════════════════════════════════════════════
-    // 导航栏
+    // 导航栏 — 点击时切换页面 visible + TitleBar 状态
     // ════════════════════════════════════════════════════════════
     NavigatorBar {
         id: appNavBar
@@ -62,65 +56,62 @@ ApplicationWindow {
         anchors.bottom: parent.bottom
 
         onNavigationChanged: function(index, name) {
-            if (index >= 0 && index < pageManager.pages.length
-                    && mainStackView.currentItem !== pageManager.pages[index]) {
-                mainStackView.replace(pageManager.pages[index], {},
-                                      StackView.Immediate)
-            }
+            // 切换页面可见性
+            esiPage.visible      = (index === 0)
+            simulatePage.visible = (index === 1)
+
+            // 显式切换 TitleBar 状态
+            appTitleBar.state = (index === 0) ? "esi" : "simulate"
         }
     }
 
     // ════════════════════════════════════════════════════════════
-    // 主内容区 — StackView 页面切换
+    // 主内容区 — 所有页面预创建，通过 visible 切换
     // ════════════════════════════════════════════════════════════
-    StackView {
-        id: mainStackView
+    Item {
+        id: contentArea
         anchors.top: titleBarSep.bottom
         anchors.left: appNavBar.right
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-    }
 
-    // ── 页面管理器（预创建所有 page，切换时 preserve 状态）────────
-    Item {
-        id: pageManager
-        property var pages: []
-
-        Component.onCompleted: {
-            pages = [
-                esiPageComp.createObject(mainStackView),
-                odPageComp.createObject(mainStackView),
-                pdoPageComp.createObject(mainStackView)
-            ]
-            mainStackView.push(pages[0])
-        }
-    }
-
-    // ── Page 0: ESI Browser ────────────────────────────────────
-    Component {
-        id: esiPageComp
+        // ── Page 0: ESI Browser（默认可见）──────────────────────
         ESIBrowserWidget {
+            id: esiPage
+            anchors.fill: parent
+            visible: true
+
             onFileOpenRequested: fileDialog.open()
             onFileDropped: function(url) { loadEsiFile(url) }
         }
-    }
 
-    // ── Page 1: Object Dictionary（占位）───────────────────────
-    Component {
-        id: odPageComp
-        Rectangle {
-            color: ThemeManager.current.bgWindow
+        // ── Page 1: Simulate（默认隐藏）─────────────────────────
+        SimulateWidget {
+            id: simulatePage
+            anchors.fill: parent
+            visible: false
 
+            // 仿真状态变化 → 同步到 TitleBar
+            onHasSlavesChanged: {
+                appTitleBar.simHasSlaves = simulatePage.hasSlaves
+                appTitleBar.simSlaveCount = simulatePage.slaveCount
+            }
+            onSimStateChanged:  appTitleBar.simState       = simulatePage.simState
+            onSlaveCountChanged: appTitleBar.simSlaveCount  = simulatePage.slaveCount
+            onFrameCountChanged: appTitleBar.simFrameCount  = simulatePage.frameCount
+            onCycleTimeChanged:  appTitleBar.simCycleTime   = simulatePage.cycleTime
         }
     }
 
-    // ── Page 2: PDO Mapping（占位）─────────────────────────────
-    Component {
-        id: pdoPageComp
-        Rectangle {
-            color: ThemeManager.current.bgWindow
-
-        }
+    // ════════════════════════════════════════════════════════════
+    // TitleBar 仿真按钮 → SimulateWidget
+    // ════════════════════════════════════════════════════════════
+    Connections {
+        target: appTitleBar
+        function onSimulateRun()   { simulatePage.runSimulation() }
+        function onSimulatePause() { simulatePage.pauseSimulation() }
+        function onSimulateReset() { simulatePage.resetSimulation() }
+        function onSimulateStep()  { simulatePage.stepFrame() }
     }
 
     // ════════════════════════════════════════════════════════════
@@ -152,10 +143,9 @@ ApplicationWindow {
         }
 
         console.log("Loading ESI:", path)
-        var browserWidget = pageManager.pages[0]
-        browserWidget.esiTree.showLoading()
+        esiPage.esiTree.showLoading()
         var success = ESITreeModel.loadFile(path)
-        browserWidget.esiTree.hideLoading()
+        esiPage.esiTree.hideLoading()
         if (success) {
             // 更新标题栏文件状态
             var fileName = path.split("/").pop().split("\\").pop()

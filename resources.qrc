@@ -4,8 +4,10 @@
         <file>resources/TitleBar/file.svg</file>
         <file>resources/TitleBar/search.svg</file>
         <file>resources/NavigatorBar/file.svg</file>
-        <file>resources/NavigatorBar/dictionary.svg</file>
-        <file>resources/NavigatorBar/mapping.svg</file>
+        <file>resources/NavigatorBar/simulate.svg</file>
+        <file>resources/SimulateWidget/start.svg</file>
+        <file>resources/SimulateWidget/pause.svg</file>
+        <file>resources/SimulateWidget/stop.svg</file>
         <file>resources/tree-icons/vendor.svg</file>
         <file>resources/tree-icons/group.svg</file>
         <file>resources/tree-icons/device.svg</file>

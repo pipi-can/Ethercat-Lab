@@ -1,28 +1,50 @@
 import QtQuick
+import QtQuick.Controls
 
 import "../components"
+
 /*
- * @brief: 自定义标题栏，替换系统默认标题栏。
+ * @brief: 自定义标题栏。两态切换，由 main.qml 显式设置 state。
+ *         state = "esi"      → Open ESI 按钮 + 文件状态 + 搜索框
+ *         state = "simulate" → Run/Pause/Reset/Step + 仿真状态信息
  */
 Rectangle {
     id: root
 
+    // ── 公开接口 ────────────────────────────────────────────────
     signal openEsiClicked()
     signal searchRequested(string query)
 
-    // 文件状态（由 main.qml 设置）
+    // 仿真页面控制信号
+    signal simulateRun()
+    signal simulatePause()
+    signal simulateReset()
+    signal simulateStep()
+
+    // 当前状态由 main.qml 显式设置：appTitleBar.state = "esi" / "simulate"
+
+    // ── ESI 状态属性 ────────────────────────────────────────────
     property bool hasLoadedFile: false
     property string currentFileName: ""
     property string currentFileInfo: ""
 
+    // ── 仿真状态属性 ────────────────────────────────────────────
+    property bool simHasSlaves: false
+    property int simSlaveCount: 0
+    property int simFrameCount: 0
+    property string simState: "OP"
+    property string simCycleTime: "1000 μs"
+
     function focusSearch() {
-        searchInput.forceActiveFocus()
+        if (searchInput.visible) searchInput.forceActiveFocus()
     }
 
     color: ThemeManager.current.bgTitleBar
     height: 45
-    // 占位——后续会添加窗口控制按钮、标题文字等内容
 
+    // ════════════════════════════════════════════════════════════
+    // ESI 浏览器态：Open ESI + 文件状态 + 搜索
+    // ════════════════════════════════════════════════════════════
     IconButton {
         id: openEsiBtn
         anchors {
@@ -48,7 +70,6 @@ Rectangle {
         fontBold: true
 
         onClicked: root.openEsiClicked()
-
     }
 
     Seprator {
@@ -63,6 +84,7 @@ Rectangle {
         height: 30
     }
 
+    // 文件状态指示器
     Item {
         id: fileStateItem
         anchors {
@@ -93,6 +115,7 @@ Rectangle {
         }
     }
 
+    // 搜索框（ESI 态可见）
     InputField {
         id: searchInput
         anchors {
@@ -116,4 +139,218 @@ Rectangle {
         onTextChanged: root.searchRequested(text)
         onAccepted: root.searchRequested(text)
     }
+
+    // ════════════════════════════════════════════════════════════
+    // 仿真态：Run / Pause / Reset / Step + info
+    // ════════════════════════════════════════════════════════════
+    Row {
+        id: simControls
+        anchors {
+            left: parent.left
+            leftMargin: 20
+            verticalCenter: parent.verticalCenter
+        }
+        spacing: 6
+        visible: false
+
+        // Run — start.svg · 绿色
+        IconButton {
+            iconSource: "qrc:/resources/SimulateWidget/start.svg"
+            iconSize: 14
+            buttonText: qsTr("Run")
+            fontSize: 11
+            fontBold: true
+            fontFamily: "微软雅黑"
+
+            bgPlaceColor: "#42a85f"
+            bgHoverColor: "#5abe6f"
+            bgPressColor: "#3a9554"
+
+            iconPlaceColor: "#ffffff"
+            iconHoverColor: "#ffffff"
+            iconPressColor: "#ffffff"
+
+            textPlaceColor: "#ffffff"
+            textHoverColor: "#ffffff"
+            textPressColor: "#ffffff"
+
+            horizontalMargin: 10
+            verticalMargin: 4
+
+            onClicked: root.simulateRun()
+        }
+
+        // Pause — pause.svg · 橙色
+        IconButton {
+            iconSource: "qrc:/resources/SimulateWidget/pause.svg"
+            iconSize: 14
+            buttonText: qsTr("Pause")
+            fontSize: 11
+            fontBold: true
+            fontFamily: "微软雅黑"
+
+            bgPlaceColor: "#d4844a"
+            bgHoverColor: "#e89a5c"
+            bgPressColor: "#c0743a"
+
+            iconPlaceColor: "#ffffff"
+            iconHoverColor: "#ffffff"
+            iconPressColor: "#ffffff"
+
+            textPlaceColor: "#ffffff"
+            textHoverColor: "#ffffff"
+            textPressColor: "#ffffff"
+
+            horizontalMargin: 10
+            verticalMargin: 4
+
+            onClicked: root.simulatePause()
+        }
+
+        // Reset — stop.svg · 暗色
+        IconButton {
+            iconSource: "qrc:/resources/SimulateWidget/stop.svg"
+            iconSize: 14
+            buttonText: qsTr("Reset")
+            fontSize: 11
+            fontFamily: "微软雅黑"
+
+            bgPlaceColor: "#252830"
+            bgHoverColor: "#3a3d45"
+            bgPressColor: "#1a1d22"
+
+            borderPlaceColor: ThemeManager.current.bgSeparator
+            borderHoverColor: ThemeManager.current.bgSeparator
+            borderPressColor: ThemeManager.current.bgSeparator
+            borderWidth: 1
+
+            iconPlaceColor: ThemeManager.current.textSecondary
+            iconHoverColor: ThemeManager.current.textPrimary
+            iconPressColor: ThemeManager.current.textPrimary
+
+            textPlaceColor: ThemeManager.current.textSecondary
+            textHoverColor: ThemeManager.current.textPrimary
+            textPressColor: ThemeManager.current.textPrimary
+
+            horizontalMargin: 10
+            verticalMargin: 4
+
+            onClicked: root.simulateReset()
+        }
+
+        Seprator {
+            color: ThemeManager.current.bgSeparator
+            width: 2
+            height: 20
+            anchors.verticalCenter: parent.verticalCenter
+        }
+
+        // Step — 暗色（无独立图标）
+        IconButton {
+            iconSource: ""
+            iconSize: 0
+            buttonText: qsTr("Step")
+            fontSize: 11
+            fontFamily: "微软雅黑"
+
+            bgPlaceColor: "#252830"
+            bgHoverColor: "#3a3d45"
+            bgPressColor: "#1a1d22"
+
+            borderPlaceColor: ThemeManager.current.bgSeparator
+            borderHoverColor: ThemeManager.current.bgSeparator
+            borderPressColor: ThemeManager.current.bgSeparator
+            borderWidth: 1
+
+            iconPlaceColor: "transparent"
+            textPlaceColor: ThemeManager.current.textSecondary
+            textHoverColor: ThemeManager.current.textPrimary
+            textPressColor: ThemeManager.current.textPrimary
+
+            horizontalMargin: 10
+            verticalMargin: 4
+
+            onClicked: root.simulateStep()
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // 仿真状态信息（居中靠左）
+    // ════════════════════════════════════════════════════════════
+    Row {
+        id: simInfoRow
+        anchors {
+            left: simControls.right
+            leftMargin: 14
+            verticalCenter: parent.verticalCenter
+        }
+        spacing: 14
+        visible: false
+
+        // State
+        Item {
+            height: 20
+            width: stateInfoLabel.implicitWidth + 4
+            Text {
+                id: stateInfoLabel
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("State: ") + "<b style='color:#42a85f'>" + root.simState + "</b>"
+                color: ThemeManager.current.textMuted
+                font.pixelSize: 11
+                font.family: "微软雅黑"
+                textFormat: Text.StyledText
+            }
+        }
+
+        // Cycle
+        Text {
+            text: qsTr("Cycle: ") + "<b>" + root.simCycleTime + "</b>"
+            color: ThemeManager.current.textMuted
+            font.pixelSize: 11
+            font.family: "微软雅黑"
+            textFormat: Text.StyledText
+        }
+
+        // Slave count
+        Text {
+            text: qsTr("Slaves: ") + "<b style='color:#5294e2'>" + root.simSlaveCount + "</b>"
+            color: ThemeManager.current.textMuted
+            font.pixelSize: 11
+            font.family: "微软雅黑"
+            textFormat: Text.StyledText
+        }
+
+        // Frame count
+        Text {
+            text: qsTr("Frame: ") + "<b style='color:#d4844a'>" + root.simFrameCount + "</b>"
+            color: ThemeManager.current.textMuted
+            font.pixelSize: 11
+            font.family: "微软雅黑"
+            textFormat: Text.StyledText
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // 状态机
+    // ════════════════════════════════════════════════════════════
+    states: [
+        State {
+            name: "esi"
+            PropertyChanges { target: openEsiBtn; visible: true }
+            PropertyChanges { target: sep1; visible: true }
+            PropertyChanges { target: fileStateItem; visible: true }
+            PropertyChanges { target: searchInput; visible: true }
+            PropertyChanges { target: simControls; visible: false }
+            PropertyChanges { target: simInfoRow; visible: false }
+        },
+        State {
+            name: "simulate"
+            PropertyChanges { target: openEsiBtn; visible: false }
+            PropertyChanges { target: sep1; visible: false }
+            PropertyChanges { target: fileStateItem; visible: false }
+            PropertyChanges { target: searchInput; visible: false }
+            PropertyChanges { target: simControls; visible: true }
+            PropertyChanges { target: simInfoRow; visible: true }
+        }
+    ]
 }
