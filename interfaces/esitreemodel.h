@@ -24,7 +24,8 @@ enum class NodeType {
     Mailbox, InitCmd, Eeprom,
     Dc, DcOpMode, Slot, ModuleIdent, Esc,
     Profile, Dictionary, DataTypeNode, Object, SubItem,
-    Module, Group, Vendor
+    Module, Group, Vendor,
+    TimeoutInfo
 };
 
 class ESITreeModel : public QStandardItemModel
@@ -73,6 +74,7 @@ private:
     static QVariantMap buildVendorProps(const ESIVendor& v);
     static QVariantMap buildGroupProps(const ESIGroup& g);
     static QVariantMap buildDeviceProps(const ESIDevice& d);
+    static QVariantMap buildInfoProps(const ESIInfo& info);
     static QVariantMap buildSmProps(const ESISm& sm);
     static QVariantMap buildFmmuProps(const ESIFmmu& f);
     static QVariantMap buildRxpdoProps(const ESIRxpdo& p);

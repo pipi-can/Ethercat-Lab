@@ -35,6 +35,7 @@ QString ESITreeModel::iconForNodeType(NodeType type)
     case NodeType::Object:       return prefix + "entry.svg";
     case NodeType::SubItem:      return prefix + "entry.svg";
     case NodeType::Module:       return prefix + "module.svg";
+    case NodeType::TimeoutInfo:  return prefix + "entry.svg";
     }
     return {};
 }
@@ -74,6 +75,7 @@ QString ESITreeModel::iconColorForNodeType(NodeType type)
     case NodeType::DataTypeNode:
     case NodeType::Object:
     case NodeType::SubItem:
+    case NodeType::TimeoutInfo:
     default:
         return QStringLiteral("#88909e");
     }
@@ -113,6 +115,16 @@ QVariantMap ESITreeModel::buildDeviceProps(const ESIDevice& d)
     m["Type"] = QString::fromStdString(d.type);
     m["Name"] = QString::fromStdString(d.name);
     m["Group Type"] = QString::fromStdString(d.groupType);
+    return m;
+}
+
+QVariantMap ESITreeModel::buildInfoProps(const ESIInfo& info)
+{
+    QVariantMap m;
+    m["Preop Timeout"] = info.preopTimeout;
+    m["Safeop-Op Timeout"] = info.safeopOpTimeout;
+    m["Back-to-Init Timeout"] = info.backToInitTimeout;
+    m["Back-to-Safeop Timeout"] = info.backToSafeopTimeout;
     return m;
 }
 
@@ -487,6 +499,7 @@ QVariantList ESITreeModel::getLoadedDevices() const
             dm["txCount"]     = static_cast<int>(dev.txpdos.size());
             dm["hasCoe"]      = dev.mailBox.coe;
             dm["hasDc"]       = !dev.dcOpModes.empty();
+            dm["deviceIndex"] = static_cast<int>(di + 1);   // 1-based: Device #1, #2, ...
             result.append(dm);
         }
 
@@ -564,7 +577,9 @@ QStandardItem* ESITreeModel::buildDevice(const ESIDevice& device, int fileIdx)
 
     QStandardItem* infoItem = makeItem(
         QString::fromStdString(device.info.name),
-        NodeType::Device, {}, {}, {}, -1, {}, fileIdx);
+        NodeType::TimeoutInfo,
+        {}, {}, {}, -1,
+        buildInfoProps(device.info), fileIdx);
     deviceItem->appendRow(infoItem);
 
     if (!device.syncManagers.empty()) {

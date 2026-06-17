@@ -12,8 +12,11 @@
         <file>layouts/components/ThemeConfig.js</file>
         <file>layouts/components/ThemeManager.qml</file>
         <file>layouts/components/qmldir</file>
+        <file>layouts/components/NodeContextMenu.qml</file>
         <file>layouts/NavigationBar/NavigatorBar.qml</file>
         <file>layouts/ESIBrowserWidget/ESIBrowserWidget.qml</file>
         <file>layouts/SimulateWidget/SimulateWidget.qml</file>
+        <file>layouts/SimulateWidget/TopologyCanvas.qml</file>
+        <file>layouts/SimulateWidget/SlaveNode.qml</file>
     </qresource>
 </RCC>

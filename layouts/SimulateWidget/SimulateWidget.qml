@@ -39,7 +39,8 @@ Rectangle {
                 rxCount: d.rxCount || 0,
                 txCount: d.txCount || 0,
                 hasCoe: d.hasCoe ? "Yes" : "No",
-                hasDc: d.hasDc ? "Yes" : "No"
+                hasDc: d.hasDc ? "Yes" : "No",
+                deviceIndex: d.deviceIndex || 0
             })
         }
         root.hasSlaves = ESITreeModel.hasData
@@ -198,13 +199,29 @@ Rectangle {
                 }
 
                 delegate: Rectangle {
-                    width: ListView.view.width - 16; height: 64
+                    id: itemDelegate
+                    width: ListView.view.width - 16; height: 80
                     x: 8; radius: 6
                     color: mouseArea.containsMouse ? "#252830" : "transparent"
                     border.color: mouseArea.containsMouse ? "#2a2e36" : "transparent"
 
                     MouseArea {
-                        id: mouseArea; anchors.fill: parent; hoverEnabled: true
+                        id: mouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onDoubleClicked: {
+                            topologyCanvas.addSlave({
+                                name:    model.name,
+                                vendor:  model.vendor,
+                                type:    model.type,
+                                smCount: model.smCount,
+                                rxCount: model.rxCount,
+                                txCount: model.txCount,
+                                hasCoe:  model.hasCoe,
+                                hasDc:   model.hasDc,
+                                deviceIndex: model.deviceIndex
+                            })
+                        }
                     }
 
                     // 设备图标
@@ -228,11 +245,28 @@ Rectangle {
                         anchors.right: parent.right; anchors.rightMargin: 12
                         spacing: 3
 
-                        Text {
-                            width: parent.width
-                            text: model.name; color: "#d4d7dc"
-                            font.pixelSize: 13; font.weight: Font.DemiBold
-                            font.family: "微软雅黑"; elide: Text.ElideRight
+                        Row {
+                            spacing: 6
+                            // 设备编号徽章（放名字前）
+                            Rectangle {
+                                width: devIdxText.implicitWidth + 6; height: 15; radius: 3
+                                color: Qt.rgba(82/255, 148/255, 226/255, 0.12)
+                                anchors.verticalCenter: parent.verticalCenter
+                                Text {
+                                    id: devIdxText
+                                    anchors.centerIn: parent
+                                    text: "D" + model.deviceIndex; color: "#5294e2"
+                                    font.pixelSize: 9; font.family: "微软雅黑"
+                                }
+                            }
+                            Text {
+                                text: model.name; color: "#d4d7dc"
+                                font.pixelSize: 13; font.weight: Font.DemiBold
+                                font.family: "微软雅黑"
+                                elide: Text.ElideMiddle
+                                width: parent.width - devIdxText.implicitWidth - 12
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
                         }
                         Text {
                             text: model.type + "  ·  " + model.vendor
@@ -283,34 +317,13 @@ Rectangle {
             }
         }
 
-        // ── 右侧占位 ──────────────────────────────────────────
-        Rectangle {
+        // ── 右侧拓扑画布 ──────────────────────────────────────
+        TopologyCanvas {
+            id: topologyCanvas
             anchors.top: parent.top
             anchors.left: slavePanel.right
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            color: ThemeManager.current.bgWindow
-
-            Column {
-                anchors.centerIn: parent; spacing: 10
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: "⬡"
-                    color: "#555c69"; font.pixelSize: 40; opacity: 0.3
-                }
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: "Topology editor coming soon"
-                    color: ThemeManager.current.textMuted
-                    font.pixelSize: 13; font.family: "微软雅黑"
-                }
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: "Select a slave to add to the topology"
-                    color: ThemeManager.current.navIconDefault
-                    font.pixelSize: 11; font.family: "微软雅黑"
-                }
-            }
         }
     }
 
