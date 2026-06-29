@@ -7,11 +7,13 @@ QT += quick quickcontrols2 xml
 HEADERS += \
     interfaces/ESI_def.h \
     interfaces/esiparser.h \
-    interfaces/esitreemodel.h
+    interfaces/esitreemodel.h \
+    interfaces/simengine.h
 
 SOURCES += main.cpp \
     interfaces/esiparser.cpp \
-    interfaces/esitreemodel.cpp
+    interfaces/esitreemodel.cpp \
+    interfaces/simengine.cpp
 
 RESOURCES += qml.qrc \
     resources.qrc

@@ -2,51 +2,27 @@ import QtQuick
 import "../components"
 
 /*
- * @brief: 拓扑画布——接收从站拖入，展示 Master → S0 → S1 → ... 线性链。
- *         拖入的从站追加到链尾；右键节点可移除。
+ * @brief: 拓扑画布——Master → S0 → S1 → ... 线性链。
+ *         数据由 SimEngine 统一管理。
  */
 Rectangle {
     id: root
     color: ThemeManager.current.bgWindow
 
-    // ════════════════════════════════════════════════════════════
-    // 链数据模型
-    // ════════════════════════════════════════════════════════════
-    ListModel {
-        id: chainModel
-    }
+    property bool hasTopology: SimEngine.slaveCount > 0
+    property string insertMode: "append"
+    property int insertTarget: -1
 
-    // ════════════════════════════════════════════════════════════
-    // 公开接口
-    // ════════════════════════════════════════════════════════════
-    property bool hasTopology: chainModel.count > 0
-
-    // 插入模式：双击从站列表时插入的位置
-    property string insertMode: "append"   // "append" | "before" | "after"
-    property int insertTarget: -1           // 目标节点 index
+    signal slaveSelected(int chainIndex)
 
     function addSlave(info) {
-        var entry = {
-            name:    info.name    || "",
-            vendor:  info.vendor  || "",
-            type:    info.type    || "",
-            smCount: info.smCount || 0,
-            rxCount: info.rxCount || 0,
-            txCount: info.txCount || 0,
-            hasCoe:  info.hasCoe  === "Yes" || info.hasCoe  === true,
-            hasDc:   info.hasDc   === "Yes" || info.hasDc   === true,
-            deviceIndex: info.deviceIndex || 0
-        }
+        var insertAt = -1
+        if (insertMode === "before" && insertTarget >= 0 && insertTarget < SimEngine.slaveCount)
+            insertAt = insertTarget
+        else if (insertMode === "after" && insertTarget >= 0 && insertTarget < SimEngine.slaveCount)
+            insertAt = insertTarget + 1
 
-        if (insertMode === "before" && insertTarget >= 0 && insertTarget < chainModel.count) {
-            chainModel.insert(insertTarget, entry)
-        } else if (insertMode === "after" && insertTarget >= 0 && insertTarget < chainModel.count) {
-            chainModel.insert(insertTarget + 1, entry)
-        } else {
-            chainModel.append(entry)
-        }
-
-        // 重置为追加模式
+        SimEngine.addSlave(info.fileIndex, info.deviceIndex, insertAt)
         insertMode = "append"
         insertTarget = -1
     }
@@ -57,14 +33,13 @@ Rectangle {
     }
 
     // ════════════════════════════════════════════════════════════
-    // 空状态：网点 + 拖入提示
+    // 空状态
     // ════════════════════════════════════════════════════════════
     Item {
         id: emptyState
         anchors.fill: parent
         visible: !hasTopology
 
-        // 网点背景
         Canvas {
             anchors.fill: parent
             opacity: 0.12
@@ -81,7 +56,6 @@ Rectangle {
             }
         }
 
-        // 虚线框拖入提示
         Rectangle {
             anchors.centerIn: parent
             width: Math.min(parent.width - 80, 380)
@@ -94,13 +68,13 @@ Rectangle {
                 anchors.centerIn: parent; spacing: 10
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "⬡  Drop slaves here"
+                    text: "⬡  Double-click slaves to add"
                     color: ThemeManager.current.navIconDefault
                     font.pixelSize: 15; font.family: "微软雅黑"
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "Drag devices from the list on the left"
+                    text: "Double-click from the list on the left"
                     color: ThemeManager.current.textMuted
                     font.pixelSize: 11; font.family: "微软雅黑"
                 }
@@ -109,7 +83,7 @@ Rectangle {
     }
 
     // ════════════════════════════════════════════════════════════
-    // 链视图：Master → S0 → S1 → ...
+    // 链视图
     // ════════════════════════════════════════════════════════════
     Item {
         id: chainView
@@ -132,11 +106,8 @@ Rectangle {
                 x: 30
                 spacing: 0
 
-                // ── Master 节点 ──────────────────────────────────
                 Rectangle {
-                    id: masterNode
-                    width: 120; height: 80
-                    radius: 10
+                    width: 120; height: 80; radius: 10
                     color: "#1a1d24"
                     border.width: 1.5; border.color: "#5294e2"
                     anchors.verticalCenter: parent.verticalCenter
@@ -148,16 +119,12 @@ Rectangle {
                             width: 26; height: 26; radius: 6
                             color: Qt.rgba(82/255, 148/255, 226/255, 0.1)
                             border.color: Qt.rgba(82/255, 148/255, 226/255, 0.2)
-                            Text {
-                                anchors.centerIn: parent
-                                text: "⏻"; color: "#5294e2"; font.pixelSize: 14
-                            }
+                            Text { anchors.centerIn: parent; text: "⏻"; color: "#5294e2"; font.pixelSize: 14 }
                         }
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: "EtherCAT"; color: "#d4d7dc"
-                            font.pixelSize: 11; font.weight: Font.Bold
-                            font.family: "微软雅黑"
+                            font.pixelSize: 11; font.weight: Font.Bold; font.family: "微软雅黑"
                         }
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -166,7 +133,6 @@ Rectangle {
                         }
                     }
 
-                    // 右侧端口
                     Rectangle {
                         anchors.right: parent.right; anchors.rightMargin: -3
                         anchors.verticalCenter: parent.verticalCenter
@@ -174,15 +140,14 @@ Rectangle {
                     }
                 }
 
-                // ── 从站节点 Repeater ────────────────────────────
                 Repeater {
                     id: chainRepeater
-                    model: chainModel
+                    model: SimEngine.slaves
 
                     Row {
                         spacing: 0
+                        property int chainIdx: modelData.chainIndex
 
-                        // 连接线 + 箭头
                         Item {
                             width: 36; height: 80
                             anchors.verticalCenter: parent.verticalCenter
@@ -199,38 +164,36 @@ Rectangle {
                                     var ctx = getContext("2d")
                                     ctx.fillStyle = "#5294e2"
                                     ctx.beginPath()
-                                    ctx.moveTo(0, 0)
-                                    ctx.lineTo(8, 5)
-                                    ctx.lineTo(0, 10)
-                                    ctx.closePath()
-                                    ctx.fill()
+                                    ctx.moveTo(0, 0); ctx.lineTo(8, 5); ctx.lineTo(0, 10)
+                                    ctx.closePath(); ctx.fill()
                                 }
                             }
                         }
 
-                        // 从站节点卡片
                         SlaveNode {
                             width: 180
-                            position: model.index
-                            slaveName: model.name
-                            vendorName: model.vendor
-                            smCount:   model.smCount
-                            rxCount:   model.rxCount
-                            txCount:   model.txCount
-                            hasCoe:    model.hasCoe
-                            hasDc:     model.hasDc
-                            deviceIndex: model.deviceIndex
+                            position: chainIdx
+                            slaveName: modelData.name
+                            vendorName: modelData.vendor
+                            smCount: modelData.smCount
+                            rxCount: modelData.rxCount
+                            txCount: modelData.txCount
+                            hasCoe: modelData.hasCoe
+                            hasDc: modelData.hasDc
+                            deviceIndex: modelData.deviceIndexDisplay || (modelData.deviceIndex + 1)
+                            selected: SimEngine.selectedChainIndex === chainIdx
                             anchors.verticalCenter: parent.verticalCenter
 
-                            onDeleteClicked:      chainModel.remove(model.index)
-                            onInsertAfterClicked:  { root.insertMode = "after";  root.insertTarget = model.index }
-                            onInsertBeforeClicked: { root.insertMode = "before"; root.insertTarget = model.index }
+                            onNodeClicked: SimEngine.selectSlave(chainIdx)
+                            onNodeDoubleClicked: root.slaveSelected(chainIdx)
+                            onDeleteClicked: SimEngine.removeSlave(chainIdx)
+                            onInsertAfterClicked:  { root.insertMode = "after";  root.insertTarget = chainIdx }
+                            onInsertBeforeClicked: { root.insertMode = "before"; root.insertTarget = chainIdx }
                             onAppendClicked:       { root.insertMode = "append"; root.insertTarget = -1 }
                         }
                     }
                 }
 
-                // ── 链尾 Drop 指示区 ──────────────────────────────
                 Item {
                     width: 40; height: 80
                     anchors.verticalCenter: parent.verticalCenter
@@ -240,24 +203,18 @@ Rectangle {
                         color: "transparent"
                         border.width: 1.5
                         border.color: Qt.rgba(82/255, 148/255, 226/255, 0.15)
-                        Text {
-                            anchors.centerIn: parent
-                            text: "+"; color: "#3a3e4a"
-                            font.pixelSize: 18; font.family: "微软雅黑"
-                        }
+                        Text { anchors.centerIn: parent; text: "+"; color: "#3a3e4a"; font.pixelSize: 18; font.family: "微软雅黑" }
                     }
                 }
             }
         }
 
-        // ── 底部提示 ───────────────────────────────────────────
         Text {
-            anchors.bottom: parent.bottom; anchors.bottomMargin: 16
+            anchors.bottom: parent.bottom; anchors.bottomMargin: 8
             anchors.horizontalCenter: parent.horizontalCenter
-            text: chainModel.count + " slave(s) in chain  ·  Right-click a node to remove"
+            text: SimEngine.slaveCount + " slave(s)  ·  Click to select  ·  Double-click for PDO  ·  Right-click for menu"
             color: ThemeManager.current.textMuted
             font.pixelSize: 10; font.family: "微软雅黑"
         }
     }
-
 }

@@ -58,9 +58,9 @@ Rectangle {
         spacing: 6
 
         // 第一行：位置徽章 + 名称
-        Row {
-            spacing: 8
-            anchors.left: parent.left; anchors.right: parent.right
+        Item {
+            width: parent.width
+            height: 22
 
             Rectangle {
                 id: idx
@@ -76,12 +76,13 @@ Rectangle {
                 }
             }
 
-            // 设备编号徽章（同文件内第几个Device）
             Rectangle {
                 id: gidx
                 visible: root.deviceIndex > 0
-                width: devIdxBadge.implicitWidth + 6; height: 17; radius: 3
+                width: visible ? devIdxBadge.implicitWidth + 6 : 0
+                height: 17; radius: 3
                 color: Qt.rgba(212/255, 132/255, 74/255, 0.12)
+                anchors.left: idx.right; anchors.leftMargin: 8
                 anchors.verticalCenter: parent.verticalCenter
                 Text {
                     id: devIdxBadge
@@ -92,13 +93,15 @@ Rectangle {
             }
 
             Text {
+                anchors.left: gidx.visible ? gidx.right : idx.right
+                anchors.leftMargin: 8
+                anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.slaveName
                 color: ThemeManager.current.textPrimary
                 font.pixelSize: 13; font.weight: Font.DemiBold
                 font.family: "微软雅黑"
                 elide: Text.ElideMiddle
-                width: parent.width - idx.width - gidx.width - 10
             }
         }
 
@@ -166,6 +169,8 @@ Rectangle {
     }
 
     // ── 信号 ──────────────────────────────────────────────────
+    signal nodeClicked()
+    signal nodeDoubleClicked()
     signal deleteClicked()
     signal insertAfterClicked()
     signal insertBeforeClicked()
@@ -192,7 +197,10 @@ Rectangle {
                 contextMenu.x = mouse.x
                 contextMenu.y = mouse.y
                 contextMenu.open()
+            } else if (mouse.button === Qt.LeftButton) {
+                root.nodeClicked()
             }
         }
+        onDoubleClicked: root.nodeDoubleClicked()
     }
 }

@@ -52,6 +52,9 @@ public:
     // 仿真页面用 — 返回所有已加载文件的 Device 数据
     Q_INVOKABLE QVariantList getLoadedDevices() const;
 
+    // 仿真 PDO 配置 — 返回指定 Device 的完整 PDO 定义
+    Q_INVOKABLE QVariantMap getDeviceDetail(int fileIndex, int deviceIndex) const;
+
 signals:
     void hasDataChanged();
     void fileCountChanged();

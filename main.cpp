@@ -5,6 +5,7 @@
 #include <QQmlContext>
 
 #include "interfaces/esitreemodel.h"
+#include "interfaces/simengine.h"
 
 int main(int argc, char *argv[])
 {
@@ -21,6 +22,9 @@ int main(int argc, char *argv[])
 
     ESITreeModel* esiTreeModel = &ESITreeModel::getInstance();
     engine.rootContext()->setContextProperty("ESITreeModel", esiTreeModel);
+
+    SimEngine* simEngine = &SimEngine::getInstance();
+    engine.rootContext()->setContextProperty("SimEngine", simEngine);
 
     const QUrl url(QStringLiteral("qrc:/main.qml"));
     QObject::connect(

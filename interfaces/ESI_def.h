@@ -117,11 +117,12 @@ struct ESIRxpdo {
     std::string name;            // "Receive PDO 1"
     int     dependOnSlot;        // <Index> 上的 DependOnSlot 属性，-1 = 无
 
+    std::vector<std::string> excludes;  // <Exclude>#x1701</Exclude> 互斥 PDO
     std::vector<ESIPdoEntry> entries;
 
     ESIRxpdo()
         : fixed(false), sm(""), index(""), name("")
-        , dependOnSlot(-1), entries() {}
+        , dependOnSlot(-1), excludes(), entries() {}
 };
 
 struct ESITxpdo {
@@ -131,11 +132,12 @@ struct ESITxpdo {
     std::string name;
     int     dependOnSlot;
 
+    std::vector<std::string> excludes;
     std::vector<ESIPdoEntry> entries;
 
     ESITxpdo()
         : fixed(false), sm(""), index(""), name("")
-        , dependOnSlot(-1), entries() {}
+        , dependOnSlot(-1), excludes(), entries() {}
 };
 
 // ════════════════════════════════════════════════════════════

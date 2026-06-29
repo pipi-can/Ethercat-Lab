@@ -188,6 +188,7 @@ void ESIParser::parseDevices(QXmlStreamReader &xml, ECATInfo &info)
                     txpdo.index = rxpdo.index;
                     txpdo.name = rxpdo.name;
                     txpdo.dependOnSlot = rxpdo.dependOnSlot;
+                    txpdo.excludes = std::move(rxpdo.excludes);
                     txpdo.entries = std::move(rxpdo.entries);
                     device.txpdos.push_back(std::move(txpdo));
                 } else if (xml.name() == QStringView(u"Mailbox")) {
@@ -262,6 +263,9 @@ ESIRxpdo ESIParser::parseRxpdo(QXmlStreamReader &xml)
         } else if (name == "Entry") {
             ESIPdoEntry pdoEntry = parsePdoEntry(xml);
             result.entries.emplace_back(pdoEntry);
+        } else if (name == "Exclude") {
+            // AKD 等：标记与哪些 PDO 索引互斥，同一方向只能激活其中一个
+            result.excludes.push_back(xml.readElementText().toStdString());
         } else {
             xml.skipCurrentElement();
         }
@@ -726,6 +730,7 @@ ESIModule ESIParser::parseModule(QXmlStreamReader &xml)
             txpdo.index = rxpdo.index;
             txpdo.name = rxpdo.name;
             txpdo.dependOnSlot = rxpdo.dependOnSlot;
+            txpdo.excludes = std::move(rxpdo.excludes);
             txpdo.entries = std::move(rxpdo.entries);
             result.txpdos.push_back(std::move(txpdo));
         } else if (name == "Mailbox") {

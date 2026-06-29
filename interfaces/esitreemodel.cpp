@@ -157,6 +157,12 @@ QVariantMap ESITreeModel::buildRxpdoProps(const ESIRxpdo& p)
     m["SM"] = QString::fromStdString(p.sm);
     m["Depend On Slot"] = p.dependOnSlot;
 
+    // 互斥 PDO 列表，仿真勾选时用于自动取消冲突项
+    QVariantList exList;
+    for (const auto& ex : p.excludes)
+        exList.append(QString::fromStdString(ex));
+    m["excludes"] = exList;
+
     // 子项列表 — 供详情面板的 Entry 表格使用
     QVariantList entries;
     for (const auto& e : p.entries) {
@@ -174,6 +180,12 @@ QVariantMap ESITreeModel::buildTxpdoProps(const ESITxpdo& p)
     m["Fixed"] = p.fixed ? QStringLiteral("Yes") : QStringLiteral("No");
     m["SM"] = QString::fromStdString(p.sm);
     m["Depend On Slot"] = p.dependOnSlot;
+
+    // 互斥 PDO 列表，仿真勾选时用于自动取消冲突项
+    QVariantList exList;
+    for (const auto& ex : p.excludes)
+        exList.append(QString::fromStdString(ex));
+    m["excludes"] = exList;
 
     QVariantList entries;
     for (const auto& e : p.entries) {
@@ -499,7 +511,8 @@ QVariantList ESITreeModel::getLoadedDevices() const
             dm["txCount"]     = static_cast<int>(dev.txpdos.size());
             dm["hasCoe"]      = dev.mailBox.coe;
             dm["hasDc"]       = !dev.dcOpModes.empty();
-            dm["deviceIndex"] = static_cast<int>(di + 1);   // 1-based: Device #1, #2, ...
+            dm["fileIndex"]   = static_cast<int>(fi);
+            dm["deviceIndex"] = static_cast<int>(di);       // 0-based，QML 展示 +1
             result.append(dm);
         }
 
@@ -516,10 +529,139 @@ QVariantList ESITreeModel::getLoadedDevices() const
                 dm["txCount"]    = static_cast<int>(mod.txpdos.size());
                 dm["hasCoe"]     = mod.mailBox.coe;
                 dm["hasDc"]      = false;
+                dm["fileIndex"]  = static_cast<int>(fi);
+                dm["deviceIndex"] = static_cast<int>(mi);
                 result.append(dm);
             }
         }
     }
+
+    return result;
+}
+
+// ════════════════════════════════════════════════════════════
+// 仿真用 PDO 数据源辅助
+//
+// ESI 文件有两种常见组织方式：
+//   AKD  — PDO 预设直接写在 <Device> 里，用 <Exclude> 标记互斥
+//   Copley — <Device> 只有空槽位，真实映射在 <Modules> 里，靠 Slot 选 Module
+// ════════════════════════════════════════════════════════════
+namespace {
+
+/**
+ * @brief 判断 Device 层是否自带已分配 Sync Manager 的 PDO 预设
+ * @retval true  至少有一个 Rx/Tx PDO 带 Sm="2" 等属性（AKD 风格）
+ * @retval false Device 层只有空槽位，需要往下找 Module（Copley 风格）
+ */
+bool deviceHasSmAssignedPdors(const ESIDevice& dev)
+{
+    for (const auto& p : dev.rxpdos) {
+        if (!p.sm.empty())
+            return true;
+    }
+    for (const auto& p : dev.txpdos) {
+        if (!p.sm.empty())
+            return true;
+    }
+    return false;
+}
+
+/** @brief 在 ESI 的 <Modules> 列表里按 ModuleIdent 查找，如 #x10b00100 */
+const ESIModule* findModuleByIdent(const ECATInfo& info, const std::string& ident)
+{
+    for (const ESIModule& mod : info.modules) {
+        if (mod.moduleIdent == ident)
+            return &mod;
+    }
+    return nullptr;
+}
+
+/**
+ * @brief 取第一个 Slot 上 Default="1" 的 Module 作为默认 PDO 模板
+ * @note  Copley XE2 默认是 "Cyclic position Mode"（CSP）
+ *        双轴设备暂时只取 Axis A，多轴切换以后再做
+ */
+const ESIModule* findFirstDefaultModule(const ECATInfo& info, const ESIDevice& dev)
+{
+    if (dev.slotConfig.slotList.empty())
+        return nullptr;
+
+    const ESISlot& slot = dev.slotConfig.slotList.front();
+    const ESIModuleIdent* chosen = nullptr;
+    for (const ESIModuleIdent& mi : slot.moduleIdents) {
+        if (mi.isDefault) {   // ESI 里 Default="1" 表示上电默认模式
+            chosen = &mi;
+            break;
+        }
+    }
+    if (!chosen && !slot.moduleIdents.empty())
+        chosen = &slot.moduleIdents.front();  // 没标 Default 就取第一个
+    if (!chosen)
+        return nullptr;
+
+    return findModuleByIdent(info, chosen->value);
+}
+
+} // namespace
+
+// ════════════════════════════════════════════════════════════
+// getDeviceDetail — 供 SimEngine 加载 PDO 默认配置
+//
+// 调用链：Simulate 页添加从站 → SimEngine.loadSlaveFromEsi → 此函数
+// 返回 QVariantMap，其中 rxpdos/txpdos 是仿真面板的数据源
+// ════════════════════════════════════════════════════════════
+
+QVariantMap ESITreeModel::getDeviceDetail(int fileIndex, int deviceIndex) const
+{
+    QVariantMap result;
+    if (fileIndex < 0 || static_cast<size_t>(fileIndex) >= m_loadedFiles.size())
+        return result;
+
+    const ECATInfo& info = m_loadedFiles[static_cast<size_t>(fileIndex)];
+
+    if (deviceIndex < 0 || static_cast<size_t>(deviceIndex) >= info.devices.size())
+        return result;
+
+    const ESIDevice& dev = info.devices[static_cast<size_t>(deviceIndex)];
+
+    result["name"]        = QString::fromStdString(dev.name);
+    result["type"]        = QString::fromStdString(dev.type);
+    result["productCode"] = QString::fromStdString(dev.productCode);
+    result["vendorName"]  = QString::fromStdString(info.vendor.name);
+    result["profileNo"]   = dev.profiles.empty()
+        ? QString()
+        : QString::fromStdString(dev.profiles.front().profileNo);
+    result["hasCoe"]      = dev.mailBox.coe;
+    result["hasDc"]       = !dev.dcOpModes.empty();
+
+    QVariantList rxList;
+    QVariantList txList;
+
+    // ── 选 PDO 来源 ──────────────────────────────────────────
+    // Copley 类：Device 层无 Sm 预设 → 从默认 Module 取完整映射
+    // AKD 类：Device 层自带多套 Fixed 预设 → 走下方 fallback 直接用 dev.rxpdos
+    if (!deviceHasSmAssignedPdors(dev) && !dev.slotConfig.slotList.empty()) {
+        if (const ESIModule* mod = findFirstDefaultModule(info, dev)) {
+            for (const auto& p : mod->rxpdos)
+                rxList.append(buildRxpdoProps(p));
+            for (const auto& p : mod->txpdos)
+                txList.append(buildTxpdoProps(p));
+            result[QStringLiteral("moduleName")] = QString::fromStdString(mod->name);
+        }
+    }
+
+    // Module 没找到或未走 Module 分支 → 回退到 Device 自身的 PDO 定义
+    if (rxList.isEmpty()) {
+        for (const auto& p : dev.rxpdos)
+            rxList.append(buildRxpdoProps(p));
+    }
+    if (txList.isEmpty()) {
+        for (const auto& p : dev.txpdos)
+            txList.append(buildTxpdoProps(p));
+    }
+
+    result["rxpdos"] = rxList;
+    result["txpdos"] = txList;
 
     return result;
 }

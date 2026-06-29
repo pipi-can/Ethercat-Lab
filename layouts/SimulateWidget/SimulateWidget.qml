@@ -3,58 +3,85 @@ import QtQuick.Controls
 import "../components"
 
 /*
- * @brief: 仿真页面主控件。
- *         当前阶段：左侧从站列表（已加载的 ESI 设备） + 右侧占位
+ * @brief: 仿真页面 — 从站列表 + 拓扑画布 + PDO 配置 + 帧查看器。
  */
 Rectangle {
     id: root
     color: ThemeManager.current.bgWindow
 
-    // ── 公开接口 ────────────────────────────────────────────────
-    property bool hasSlaves: false
-    property int slaveCount: 0
-    property int frameCount: 0
-    property string simState: "OP"
+    property bool hasSlaves: ESITreeModel.hasData
+    property int slaveCount: SimEngine.slaveCount
+    property int frameCount: SimEngine.frameCount
+    property string simState: SimEngine.running ? "OP" : "INIT"
     property string cycleTime: "1000 μs"
 
-    // ── 仿真控制（供 TitleBar 信号调用）────────────────────────
-    function runSimulation()   { console.log("Sim: Run"); simState = "OP" }
-    function pauseSimulation() { console.log("Sim: Pause") }
-    function resetSimulation() { console.log("Sim: Reset"); frameCount = 0 }
-    function stepFrame()       { console.log("Sim: Step"); frameCount++ }
+    property int framePanelHeight: 180
+    property bool pdoPanelOpen: false
 
-    // ── 刷新设备列表 ────────────────────────────────────────────
+    function openPdoPanel(chainIndex) {
+        SimEngine.selectSlave(chainIndex)
+        pdoPanelOpen = true
+    }
+
+    function closePdoPanel() {
+        pdoPanelOpen = false
+    }
+
+    function runSimulation()   { SimEngine.runSimulation(); simState = "OP" }
+    function pauseSimulation() { SimEngine.pauseSimulation() }
+    function resetSimulation() { SimEngine.resetSimulation(); frameCount = 0 }
+    function stepFrame()       { SimEngine.stepFrame() }
+
     function refreshDeviceList() {
         deviceListModel.clear()
         var devices = ESITreeModel.getLoadedDevices()
         for (var i = 0; i < devices.length; i++) {
             var d = devices[i]
             deviceListModel.append({
-                dataIndex: i,
-                name: d.name || "",
-                type: d.type || "",
-                vendor: d.vendorName || "",
+                fileIndex:   d.fileIndex !== undefined ? d.fileIndex : 0,
+                deviceIndex: d.deviceIndex !== undefined ? d.deviceIndex : 0,
+                name:        d.name || "",
+                type:        d.type || "",
+                vendor:      d.vendorName || "",
                 productCode: d.productCode || "",
-                smCount: d.smCount || 0,
-                rxCount: d.rxCount || 0,
-                txCount: d.txCount || 0,
-                hasCoe: d.hasCoe ? "Yes" : "No",
-                hasDc: d.hasDc ? "Yes" : "No",
-                deviceIndex: d.deviceIndex || 0
+                smCount:     d.smCount || 0,
+                rxCount:     d.rxCount || 0,
+                txCount:     d.txCount || 0,
+                hasCoe:      d.hasCoe ? "Yes" : "No",
+                hasDc:       d.hasDc ? "Yes" : "No"
             })
         }
         root.hasSlaves = ESITreeModel.hasData
     }
 
-    // 初始化 + 页面切换时刷新
     Component.onCompleted: refreshDeviceList()
     onVisibleChanged: { if (visible) refreshDeviceList() }
 
-    // ── 数据模型 ────────────────────────────────────────────────
+    Connections {
+        target: SimEngine
+        function onFrameCountChanged() { root.frameCount = SimEngine.frameCount }
+        function onRunningChanged() { root.simState = SimEngine.running ? "OP" : "INIT" }
+        function onSlavesChanged() {
+            root.slaveCount = SimEngine.slaveCount
+            if (SimEngine.slaveCount === 0 || SimEngine.selectedChainIndex < 0)
+                root.closePdoPanel()
+        }
+        function onSelectedChainIndexChanged() {
+            if (SimEngine.selectedChainIndex < 0)
+                root.closePdoPanel()
+        }
+    }
+
+    Connections {
+        target: ESITreeModel
+        function onHasDataChanged() { if (root.visible) refreshDeviceList() }
+        function onFileCountChanged() { if (root.visible) refreshDeviceList() }
+    }
+
     ListModel { id: deviceListModel }
 
     // ════════════════════════════════════════════════════════════
-    // 空状态：无加载文件时的欢迎页
+    // 空状态
     // ════════════════════════════════════════════════════════════
     Item {
         id: welcomeView
@@ -65,102 +92,38 @@ Rectangle {
             anchors.centerIn: parent; spacing: 24
             width: Math.min(parent.width - 48, 440)
 
-            Column {
-                anchors.horizontalCenter: parent.horizontalCenter; spacing: 10
-
-                Rectangle {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    width: 70; height: 70; radius: 16
-                    color: Qt.rgba(82/255, 148/255, 226/255, 0.08)
-                    border.width: 1
-                    border.color: Qt.rgba(82/255, 148/255, 226/255, 0.15)
-
-                    Rectangle {
-                        anchors.left: parent.left; anchors.leftMargin: 14
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 14; height: 20; radius: 3; color: "#d4844a"
-                    }
-                    Rectangle {
-                        anchors.right: parent.right; anchors.rightMargin: 14
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 14; height: 20; radius: 3; color: "#5294e2"
-                    }
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: 16; height: 2
-                        color: Qt.rgba(82/255, 148/255, 226/255, 0.4)
-                    }
-                }
-
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: "EtherCAT Simulation"
-                    color: ThemeManager.current.textPrimary
-                    font.pixelSize: 20; font.weight: Font.Bold; font.family: "微软雅黑"
-                }
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: "Topology Editor · Frame Viewer · Protocol Simulation"
-                    color: ThemeManager.current.textSecondary
-                    font.pixelSize: 12; font.family: "微软雅黑"
-                }
-            }
-
-            Rectangle {
+            Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: parent.width; height: 150; radius: 10
-                color: "transparent"
-                border.width: 2; border.color: ThemeManager.current.navBorder
-
-                Column {
-                    anchors.centerIn: parent; spacing: 8
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: "No slaves loaded"
-                        color: ThemeManager.current.textSecondary
-                        font.pixelSize: 14; font.family: "微软雅黑"
-                    }
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: "Load an ESI XML file from the ESI Browser first"
-                        color: ThemeManager.current.navIconDefault
-                        font.pixelSize: 11; font.family: "微软雅黑"
-                    }
-                }
+                text: "EtherCAT Simulation"
+                color: ThemeManager.current.textPrimary
+                font.pixelSize: 20; font.weight: Font.Bold; font.family: "微软雅黑"
             }
-
-            Row {
-                anchors.horizontalCenter: parent.horizontalCenter; spacing: 4
-                KbdLabel { text: "Ctrl" }
-                Text { text: "+"; color: ThemeManager.current.navIconDefault; font.pixelSize: 11; font.family: "微软雅黑" }
-                KbdLabel { text: "R" }
-                Text { text: " run  ·  "; color: ThemeManager.current.navIconDefault; font.pixelSize: 11; font.family: "微软雅黑" }
-                KbdLabel { text: "Space" }
-                Text { text: " step  ·  "; color: ThemeManager.current.navIconDefault; font.pixelSize: 11; font.family: "微软雅黑" }
-                KbdLabel { text: "Del" }
-                Text { text: " remove slave"; color: ThemeManager.current.navIconDefault; font.pixelSize: 11; font.family: "微软雅黑" }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "Load an ESI file from the ESI Browser first"
+                color: ThemeManager.current.textSecondary
+                font.pixelSize: 12; font.family: "微软雅黑"
             }
         }
     }
 
     // ════════════════════════════════════════════════════════════
-    // 已加载文件：左侧从站列表 + 右侧占位
+    // 工作区
     // ════════════════════════════════════════════════════════════
     Item {
         id: workspace
         anchors.fill: parent
         visible: root.hasSlaves
 
-        // ── 左侧从站面板 ──────────────────────────────────────
+        // ── 左侧从站列表 ──────────────────────────────────────
         Rectangle {
             id: slavePanel
             anchors.top: parent.top; anchors.left: parent.left
-            anchors.bottom: parent.bottom
-            width: 280
+            anchors.bottom: framePanel.top
+            width: 260
             color: "#1c1f26"
             border.color: "#2a2e36"
 
-            // Header
             Rectangle {
                 anchors.top: parent.top; anchors.left: parent.left
                 anchors.right: parent.right; height: 38
@@ -182,25 +145,34 @@ Rectangle {
                 }
             }
 
-            // Device list
             ListView {
                 id: deviceListView
                 anchors.top: parent.top; anchors.topMargin: 39
-                anchors.left: parent.left; anchors.right: parent.right
+                anchors.horizontalCenter: slavePanel.horizontalCenter
                 anchors.bottom: parent.bottom
+                width: slavePanel.width - 6
                 clip: true; spacing: 2
                 model: deviceListModel
 
                 ScrollBar.vertical: ScrollBar {
                     policy: ScrollBar.AsNeeded
-                    contentItem: Rectangle {
-                        implicitWidth: 6; radius: 3; color: "#2a2e36"
-                    }
+                    contentItem: Rectangle { implicitWidth: 6; radius: 3; color: "#2a2e36" }
                 }
 
                 delegate: Rectangle {
-                    id: itemDelegate
-                    width: ListView.view.width - 16; height: 80
+                    // ListModel 角色 → delegate 顶层属性（Qt 6.5），子组件直接用 deviceName 避免 model 作用域问题
+                    required property int fileIndex
+                    required property int deviceIndex
+                    required property string name
+                    required property string type
+                    required property string vendor
+                    required property int smCount
+                    required property int rxCount
+                    required property int txCount
+                    required property string hasCoe
+                    required property string hasDc
+
+                    width: ListView.view.width - 16; height: 76
                     x: 8; radius: 6
                     color: mouseArea.containsMouse ? "#252830" : "transparent"
                     border.color: mouseArea.containsMouse ? "#2a2e36" : "transparent"
@@ -209,136 +181,178 @@ Rectangle {
                         id: mouseArea
                         anchors.fill: parent
                         hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
                         onDoubleClicked: {
                             topologyCanvas.addSlave({
-                                name:    model.name,
-                                vendor:  model.vendor,
-                                type:    model.type,
-                                smCount: model.smCount,
-                                rxCount: model.rxCount,
-                                txCount: model.txCount,
-                                hasCoe:  model.hasCoe,
-                                hasDc:   model.hasDc,
-                                deviceIndex: model.deviceIndex
+                                fileIndex:   fileIndex,
+                                deviceIndex: deviceIndex,
+                                name:        name,
+                                vendor:      vendor,
+                                type:        type,
+                                smCount:     smCount,
+                                rxCount:     rxCount,
+                                txCount:     txCount,
+                                hasCoe:      hasCoe,
+                                hasDc:       hasDc
                             })
                         }
                     }
 
-                    // 设备图标
-                    Rectangle {
+                    Column {
                         anchors.left: parent.left; anchors.leftMargin: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 36; height: 36; radius: 8
-                        color: Qt.rgba(66/255, 168/255, 95/255, 0.08)
-                        border.color: Qt.rgba(66/255, 168/255, 95/255, 0.2)
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "⬡"; color: "#42a85f"; font.pixelSize: 18
-                        }
-                    }
-
-                    // 设备信息
-                    Column {
-                        anchors.left: parent.left; anchors.leftMargin: 56
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.right: parent.right; anchors.rightMargin: 12
+                        anchors.right: parent.right; anchors.rightMargin: 8
                         spacing: 3
 
-                        Row {
-                            spacing: 6
-                            // 设备编号徽章（放名字前）
-                            Rectangle {
-                                width: devIdxText.implicitWidth + 6; height: 15; radius: 3
-                                color: Qt.rgba(82/255, 148/255, 226/255, 0.12)
+                        // 用 Item+anchors 布局，避免 Row 无宽度导致 name Text 宽度为 0
+                        Item {
+                            width: parent.width
+                            height: 18
+
+                            Text {
+                                id: nameText;
+                                anchors.left: parent.left
                                 anchors.verticalCenter: parent.verticalCenter
+                                text: name
+                                color: "#d4d7dc"
+                                font.pixelSize: 12; font.weight: Font.DemiBold; font.family: "微软雅黑"
+                                elide: Text.ElideMiddle
+                            }
+                            Rectangle {
+                                id: devBadge
+                                height: 15; radius: 3
+                                width: devIdxText.implicitWidth + 6
+                                anchors.left: nameText.right
+                                anchors.leftMargin: 6
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: Qt.rgba(82/255, 148/255, 226/255, 0.12)
                                 Text {
                                     id: devIdxText
                                     anchors.centerIn: parent
-                                    text: "D" + model.deviceIndex; color: "#5294e2"
-                                    font.pixelSize: 9; font.family: "微软雅黑"
+                                    text: "D" + (deviceIndex + 1)
+                                    color: "#5294e2"; font.pixelSize: 9; font.family: "微软雅黑"
                                 }
                             }
-                            Text {
-                                text: model.name; color: "#d4d7dc"
-                                font.pixelSize: 13; font.weight: Font.DemiBold
-                                font.family: "微软雅黑"
-                                elide: Text.ElideMiddle
-                                width: parent.width - devIdxText.implicitWidth - 12
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
+
                         }
                         Text {
-                            text: model.type + "  ·  " + model.vendor
-                            color: "#555c69"; font.pixelSize: 10
-                            font.family: "微软雅黑"; elide: Text.ElideRight
+                            width: parent.width
+                            text: type + "  ·  " + vendor
+                            color: "#555c69"; font.pixelSize: 10; font.family: "微软雅黑"; elide: Text.ElideRight
                         }
                         Row {
-                            spacing: 10
-                            Text {
-                                text: "SM: " + model.smCount
-                                color: "#88909e"; font.pixelSize: 10; font.family: "微软雅黑"
-                            }
-                            Text {
-                                text: "RxPDO: " + model.rxCount
-                                color: "#5294e2"; font.pixelSize: 10; font.family: "微软雅黑"
-                            }
-                            Text {
-                                text: "TxPDO: " + model.txCount
-                                color: "#42a85f"; font.pixelSize: 10; font.family: "微软雅黑"
-                            }
-                            Text {
-                                text: "CoE: " + model.hasCoe
-                                color: model.hasCoe === "Yes" ? "#42a85f" : "#555c69"
-                                font.pixelSize: 10; font.family: "微软雅黑"
-                            }
+                            spacing: 8
+                            Text { text: "Rx:" + rxCount; color: "#5294e2"; font.pixelSize: 10; font.family: "微软雅黑" }
+                            Text { text: "Tx:" + txCount; color: "#42a85f"; font.pixelSize: 10; font.family: "微软雅黑" }
                         }
                     }
-
-                    // 底部分隔线
-                    Rectangle {
-                        anchors.bottom: parent.bottom
-                        anchors.left: parent.left; anchors.leftMargin: 56
-                        anchors.right: parent.right; anchors.rightMargin: 12
-                        height: 1
-                        color: Qt.rgba(42/255, 46/255, 54/255, 0.4)
-                        visible: index < deviceListModel.count - 1
-                    }
-                }
-
-                // 列表为空
-                Text {
-                    anchors.centerIn: parent
-                    text: "No devices loaded.\nOpen an ESI file in the ESI Browser tab first."
-                    color: "#555c69"; font.pixelSize: 11; font.family: "微软雅黑"
-                    horizontalAlignment: Text.AlignHCenter
-                    visible: deviceListModel.count === 0
                 }
             }
         }
 
-        // ── 右侧拓扑画布 ──────────────────────────────────────
+        // ── 中间拓扑画布 ──────────────────────────────────────
         TopologyCanvas {
             id: topologyCanvas
             anchors.top: parent.top
             anchors.left: slavePanel.right
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
+            anchors.right: root.pdoPanelOpen ? pdoPanel.left : parent.right
+            anchors.bottom: framePanel.top
+
+            onSlaveSelected: function(chainIndex) { root.openPdoPanel(chainIndex) }
         }
-    }
 
-    // ── 键盘快捷键标签 ────────────────────────────────────────
-    component KbdLabel: Rectangle {
-        property string text: ""
-        width: kbdText.implicitWidth + 10
-        height: 20; radius: 3
-        color: ThemeManager.current.bgWindow
-        border.width: 1; border.color: ThemeManager.current.navBorder
+        // ── 右侧 PDO 配置（双击拓扑节点后打开）────────────────
+        Rectangle {
+            id: pdoPanel
+            anchors.top: parent.top; anchors.right: parent.right
+            anchors.bottom: framePanel.top
+            width: root.pdoPanelOpen ? 320 : 0
+            visible: root.pdoPanelOpen
+            clip: true
+            color: ThemeManager.current.bgWindow
+            border.color: ThemeManager.current.navBorder
 
-        Text {
-            id: kbdText; anchors.centerIn: parent
-            text: parent.text; color: ThemeManager.current.navIconDefault
-            font.pixelSize: 10; font.family: "微软雅黑"
+            Behavior on width {
+                NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+            }
+
+            Rectangle {
+                anchors.left: parent.left; anchors.top: parent.top
+                anchors.bottom: parent.bottom; width: 1
+                color: ThemeManager.current.navBorder
+            }
+
+            // 标题栏 + 关闭
+            Rectangle {
+                id: pdoPanelHeader
+                anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+                height: 36
+                color: ThemeManager.current.bgTitleBar
+                border.color: ThemeManager.current.navBorder
+
+                Text {
+                    anchors.left: parent.left; anchors.leftMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "PDO Mapping"
+                    color: ThemeManager.current.textPrimary
+                    font.pixelSize: 12; font.weight: Font.DemiBold; font.family: "微软雅黑"
+                }
+
+                MouseArea {
+                    anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
+                    width: 36
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.closePdoPanel()
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "✕"
+                        color: ThemeManager.current.textSecondary
+                        font.pixelSize: 12
+                    }
+                }
+            }
+
+            PdoConfigPanel {
+                anchors.top: pdoPanelHeader.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+            }
+        }
+
+        // ── 底部帧查看器 ──────────────────────────────────────
+        Rectangle {
+            id: framePanel
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: root.framePanelHeight
+            color: "#1a1d24"
+
+            Rectangle {
+                anchors.top: parent.top; anchors.left: parent.left
+                anchors.right: parent.right; height: 4
+                color: "transparent"
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.SizeVerCursor
+                    property int startY: 0
+                    property int startH: 0
+                    onPressed: function(m) { startY = m.y; startH = root.framePanelHeight }
+                    onPositionChanged: function(m) {
+                        if (pressed) {
+                            var nh = startH + (startY - m.y)
+                            root.framePanelHeight = Math.max(100, Math.min(400, nh))
+                        }
+                    }
+                }
+            }
+
+            FrameViewer {
+                anchors.fill: parent
+                anchors.topMargin: 2
+            }
         }
     }
 }
