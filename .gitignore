@@ -1,1 +1,4 @@
 build/
+.qtcreator/
+debug/
+EtherCAT-Lab.pro.user
