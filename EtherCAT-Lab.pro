@@ -1,4 +1,4 @@
-QT += quick quickcontrols2 xml
+QT += quick quickcontrols2 xml network
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -8,12 +8,14 @@ HEADERS += \
     interfaces/ESI_def.h \
     interfaces/esiparser.h \
     interfaces/esitreemodel.h \
-    interfaces/simengine.h
+    interfaces/simengine.h \
+    interfaces/networkmanager.h
 
 SOURCES += main.cpp \
     interfaces/esiparser.cpp \
     interfaces/esitreemodel.cpp \
-    interfaces/simengine.cpp
+    interfaces/simengine.cpp \
+    interfaces/networkmanager.cpp
 
 RESOURCES += qml.qrc \
     resources.qrc

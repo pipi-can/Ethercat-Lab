@@ -68,6 +68,7 @@ Rectangle {
     // ── 信号 ────────────────────────────────────────────────────────────
     signal iconClicked()
     signal accepted()
+    signal textEdited(string text)
 
     function forceActiveFocus() {
         textField.forceActiveFocus()
@@ -171,5 +172,6 @@ Rectangle {
         placeholderTextColor: focused ? placeholderFocusColor : placeholderColor
 
         onAccepted: root.accepted()
+        onTextChanged: root.textEdited(text)
     }
 }

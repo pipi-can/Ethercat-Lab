@@ -5,6 +5,7 @@
         <file>resources/TitleBar/search.svg</file>
         <file>resources/NavigatorBar/file.svg</file>
         <file>resources/NavigatorBar/simulate.svg</file>
+        <file>resources/NavigatorBar/iomap-monitor.svg</file>
         <file>resources/SimulateWidget/start.svg</file>
         <file>resources/SimulateWidget/pause.svg</file>
         <file>resources/SimulateWidget/stop.svg</file>

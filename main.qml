@@ -7,6 +7,7 @@ import "./layouts/TitleBar"
 import "./layouts/NavigationBar"
 import "./layouts/ESIBrowserWidget"
 import "./layouts/SimulateWidget"
+import "./layouts/IOMapMonitorWidget"
 import "./layouts/components"
 
 ApplicationWindow {
@@ -56,12 +57,16 @@ ApplicationWindow {
         anchors.bottom: parent.bottom
 
         onNavigationChanged: function(index, name) {
-            // 切换页面可见性
-            esiPage.visible      = (index === 0)
-            simulatePage.visible = (index === 1)
+            esiPage.visible       = (index === 0)
+            simulatePage.visible  = (index === 1)
+            iomapPage.visible     = (index === 2)
 
-            // 显式切换 TitleBar 状态
-            appTitleBar.state = (index === 0) ? "esi" : "simulate"
+            if (index === 0)
+                appTitleBar.state = "esi"
+            else if (index === 1)
+                appTitleBar.state = "simulate"
+            else
+                appTitleBar.state = "iomap"
         }
     }
 
@@ -101,6 +106,13 @@ ApplicationWindow {
             onFrameCountChanged: appTitleBar.simFrameCount  = simulatePage.frameCount
             onCycleTimeChanged:  appTitleBar.simCycleTime   = simulatePage.cycleTime
         }
+
+        // ── Page 2: IOMap Monitor（默认隐藏）──────────────────────
+        IOMapMonitorWidget {
+            id: iomapPage
+            anchors.fill: parent
+            visible: false
+        }
     }
 
     // ════════════════════════════════════════════════════════════
@@ -112,6 +124,7 @@ ApplicationWindow {
         function onSimulatePause() { simulatePage.pauseSimulation() }
         function onSimulateReset() { simulatePage.resetSimulation() }
         function onSimulateStep()  { simulatePage.stepFrame() }
+        function onIomapLoadDemo() { iomapPage.loadDemoPreset() }
     }
 
     // ════════════════════════════════════════════════════════════

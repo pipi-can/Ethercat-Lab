@@ -4,9 +4,10 @@ import QtQuick.Controls
 import "../components"
 
 /*
- * @brief: 自定义标题栏。两态切换，由 main.qml 显式设置 state。
+ * @brief: 自定义标题栏。三态切换，由 main.qml 显式设置 state。
  *         state = "esi"      → Open ESI 按钮 + 文件状态 + 搜索框
  *         state = "simulate" → Run/Pause/Reset/Step + 仿真状态信息
+ *         state = "iomap"    → PDO 观察者工具栏
  */
 Rectangle {
     id: root
@@ -21,7 +22,10 @@ Rectangle {
     signal simulateReset()
     signal simulateStep()
 
-    // 当前状态由 main.qml 显式设置：appTitleBar.state = "esi" / "simulate"
+    // IOMap 监视页控制信号
+    signal iomapLoadDemo()
+
+    // 当前状态由 main.qml 显式设置：appTitleBar.state = "esi" / "simulate" / "iomap"
 
     // ── ESI 状态属性 ────────────────────────────────────────────
     property bool hasLoadedFile: false
@@ -331,6 +335,81 @@ Rectangle {
     }
 
     // ════════════════════════════════════════════════════════════
+    // IOMap 监视态：左侧标题 + 右侧操作按钮
+    // ════════════════════════════════════════════════════════════
+    Item {
+        id: iomapControls
+        anchors.fill: parent
+        visible: false
+
+        Row {
+            id: iomapTitleRow
+            anchors {
+                left: parent.left
+                leftMargin: 20
+                verticalCenter: parent.verticalCenter
+            }
+            spacing: 8
+
+            Text {
+                text: qsTr("PDO 数据观察者")
+                color: ThemeManager.current.textPrimary
+                font.pixelSize: 13
+                font.bold: true
+                font.family: "微软雅黑"
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Rectangle {
+                width: iomapBadgeText.implicitWidth + 16
+                height: 20
+                radius: 10
+                color: ThemeManager.current.accentMutedBg
+                anchors.verticalCenter: parent.verticalCenter
+
+                Text {
+                    id: iomapBadgeText
+                    anchors.centerIn: parent
+                    text: "IOMap Monitor"
+                    color: ThemeManager.current.accent
+                    font.pixelSize: 10
+                    font.family: "微软雅黑"
+                }
+            }
+        }
+
+        Row {
+            anchors {
+                right: parent.right
+                rightMargin: 20
+                verticalCenter: parent.verticalCenter
+            }
+            spacing: 6
+
+            IconButton {
+                iconSource: ""
+                iconSize: 0
+                buttonText: qsTr("加载演示预设")
+                fontSize: 11
+                fontFamily: "微软雅黑"
+
+                bgPlaceColor: "transparent"
+                bgHoverColor: ThemeManager.current.bgSurface
+                bgPressColor: ThemeManager.current.bgSurfaceHover
+
+                textPlaceColor: ThemeManager.current.textSecondary
+                textHoverColor: ThemeManager.current.textPrimary
+                textPressColor: ThemeManager.current.textPrimary
+
+                horizontalMargin: 10
+                verticalMargin: 4
+
+                onClicked: root.iomapLoadDemo()
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
     // 状态机
     // ════════════════════════════════════════════════════════════
     states: [
@@ -342,6 +421,7 @@ Rectangle {
             PropertyChanges { target: searchInput; visible: true }
             PropertyChanges { target: simControls; visible: false }
             PropertyChanges { target: simInfoRow; visible: false }
+            PropertyChanges { target: iomapControls; visible: false }
         },
         State {
             name: "simulate"
@@ -351,6 +431,17 @@ Rectangle {
             PropertyChanges { target: searchInput; visible: false }
             PropertyChanges { target: simControls; visible: true }
             PropertyChanges { target: simInfoRow; visible: true }
+            PropertyChanges { target: iomapControls; visible: false }
+        },
+        State {
+            name: "iomap"
+            PropertyChanges { target: openEsiBtn; visible: false }
+            PropertyChanges { target: sep1; visible: false }
+            PropertyChanges { target: fileStateItem; visible: false }
+            PropertyChanges { target: searchInput; visible: false }
+            PropertyChanges { target: simControls; visible: false }
+            PropertyChanges { target: simInfoRow; visible: false }
+            PropertyChanges { target: iomapControls; visible: true }
         }
     ]
 }

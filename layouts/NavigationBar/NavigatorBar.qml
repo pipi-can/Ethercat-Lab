@@ -110,6 +110,13 @@ Rectangle {
             iconWidth: 18
             iconHeight: 18
         }
+        ListElement {
+            name: "PDO Observer"
+            tooltip: "PDO Observer"
+            iconSource: "qrc:/resources/NavigatorBar/iomap-monitor.svg"
+            iconWidth: 20
+            iconHeight: 20
+        }
     }
 
     // ── 导航列表 ────────────────────────────────────────────────

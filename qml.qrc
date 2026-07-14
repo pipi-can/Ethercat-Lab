@@ -20,5 +20,7 @@
         <file>layouts/SimulateWidget/SlaveNode.qml</file>
         <file>layouts/SimulateWidget/PdoConfigPanel.qml</file>
         <file>layouts/SimulateWidget/FrameViewer.qml</file>
+        <file>layouts/IOMapMonitorWidget/IOMapMonitorWidget.qml</file>
+        <file>layouts/IOMapMonitorWidget/SlaveCard.qml</file>
     </qresource>
 </RCC>

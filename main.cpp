@@ -6,6 +6,7 @@
 
 #include "interfaces/esitreemodel.h"
 #include "interfaces/simengine.h"
+#include "interfaces/networkmanager.h"
 
 int main(int argc, char *argv[])
 {
@@ -25,6 +26,9 @@ int main(int argc, char *argv[])
 
     SimEngine* simEngine = &SimEngine::getInstance();
     engine.rootContext()->setContextProperty("SimEngine", simEngine);
+
+    NetworkManager* networkManager = &NetworkManager::getInstance();
+    engine.rootContext()->setContextProperty("NetworkManager", networkManager);
 
     const QUrl url(QStringLiteral("qrc:/main.qml"));
     QObject::connect(

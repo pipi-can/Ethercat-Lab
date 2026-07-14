@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EtherCAT Lab — PDO 数据观察者</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:             #15181d;
+  --surface:        #1c1f26;
+  --surface-hover:  #252830;
+  --border:         #2a2e36;
+  --border-light:   #333844;
+  --text-primary:   #d4d7dc;
+  --text-secondary: #88909e;
+  --text-dim:       #555c69;
+  --accent:         #5294e2;
+  --accent-dim:     #1e5099;
+  --accent-bg:      rgba(82,148,226,0.08);
+  --warm:           #d4844a;
+  --warm-bg:        rgba(212,132,74,0.08);
+  --green:          #42a85f;
+  --green-bg:       rgba(66,168,95,0.08);
+  --red:            #e0554a;
+  --red-bg:         rgba(224,85,74,0.1);
+  --nav-rail:       #111318;
+  --input-bg:       #252540;
+  --input-border:   #3a3a52;
+  --font-sans:      'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:      'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --radius-sm:      4px;
+  --radius-md:      6px;
+  --radius-lg:      10px;
+  --transition:     150ms ease;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+#app { display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+/* ============ 工具栏 ============ */
+#toolbar {
+  height: 46px; min-height: 46px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 12px; gap: 6px;
+  user-select: none;
+}
+.tool-btn {
+  height: 30px; border: none; background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 10px; gap: 6px;
+  transition: background var(--transition), color var(--transition);
+  font-family: var(--font-sans); font-size: 11px;
+}
+.tool-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+.tool-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.tool-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.tool-btn.accent { background: var(--accent); color: #fff; font-weight: 600; }
+.tool-btn.accent:hover { background: #6aa3e8; }
+.tool-btn.green { background: var(--green); color: #fff; font-weight: 600; }
+.tool-btn.green:hover { background: #5abe6f; }
+.tool-btn.warn { background: var(--warm); color: #fff; font-weight: 600; }
+.tool-btn.warn:hover { background: #e89a5c; }
+.tool-btn.danger { background: var(--red); color: #fff; }
+.tool-btn.danger:hover { background: #e86a62; }
+
+.toolbar-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+
+#toolbarTitle {
+  margin-right: auto;
+  font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; gap: 8px;
+}
+#toolbarTitle .badge {
+  font-size: 10px; font-weight: 500;
+  color: var(--accent); background: var(--accent-bg);
+  padding: 2px 8px; border-radius: 10px;
+}
+
+/* ============ 主体 ============ */
+#main { flex: 1; display: flex; overflow: hidden; }
+
+#nav-rail {
+  width: 48px; min-width: 48px;
+  background: var(--nav-rail);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  align-items: center; padding: 8px 0; gap: 2px;
+}
+.nav-btn {
+  width: 40px; height: 40px;
+  border: none; background: transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-dim); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--transition), color var(--transition);
+  position: relative;
+}
+.nav-btn:hover { background: var(--surface-hover); color: var(--text-secondary); }
+.nav-btn.active { background: var(--accent-dim); color: #fff; }
+.nav-btn.active::before {
+  content: ''; position: absolute; left: -4px;
+  width: 3px; height: 20px; background: var(--accent); border-radius: 0 2px 2px 0;
+}
+.nav-btn svg { width: 20px; height: 20px; }
+.nav-spacer { flex: 1; }
+.nav-btn[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute; left: 52px; top: 50%; transform: translateY(-50%);
+  background: #2a2e38; color: var(--text-primary);
+  padding: 4px 10px; border-radius: var(--radius-sm);
+  font-size: 11px; white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4); z-index: 100; pointer-events: none;
+}
+
+/* ============ PDO 页面 ============ */
+#pdo-page {
+  flex: 1; display: flex; flex-direction: column;
+  overflow: hidden; background: var(--bg);
+}
+
+/* 连接配置条 */
+#conn-bar {
+  min-height: 44px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 8px 14px; gap: 12px; flex-wrap: wrap;
+}
+.conn-field {
+  display: flex; align-items: center; gap: 6px;
+}
+.conn-field label {
+  font-size: 11px; color: var(--text-dim); white-space: nowrap;
+}
+.conn-field input, .conn-field select {
+  height: 28px; padding: 0 8px;
+  background: var(--input-bg); border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 11px; outline: none;
+}
+.conn-field input:focus, .conn-field select:focus { border-color: var(--accent); }
+.conn-field input.ip { width: 140px; }
+.conn-field input.port { width: 72px; }
+
+.layout-summary {
+  margin-left: auto;
+  display: flex; gap: 14px; font-size: 11px; font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+.layout-summary .val { color: var(--accent); font-weight: 600; }
+.layout-summary .sep { color: var(--border); }
+
+/* 上部配置区 — 左配置 / 右实时 */
+#config-area {
+  flex: 65; min-height: 0;
+  display: flex; overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+
+#slave-config {
+  flex: 3; min-width: 0;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border);
+}
+#live-values {
+  flex: 2; min-width: 280px;
+  display: flex; flex-direction: column;
+  background: var(--surface);
+}
+
+.panel-header {
+  height: 36px; min-height: 36px;
+  display: flex; align-items: center;
+  padding: 0 12px; gap: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.panel-title {
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.panel-actions { margin-left: auto; display: flex; gap: 4px; }
+.panel-btn {
+  height: 24px; padding: 0 8px;
+  border: 1px solid var(--border); background: transparent;
+  border-radius: var(--radius-sm); color: var(--text-secondary);
+  font-size: 10px; cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.panel-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+.panel-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* 左侧：可滚动卡片列表 */
+.chain-scroll {
+  flex: 1; overflow-y: auto;
+  padding: 10px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.chain-scroll::-webkit-scrollbar { width: 6px; }
+.chain-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.slave-card {
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: visible;
+}
+.slave-card-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface-hover);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+.slave-pos {
+  width: 28px; height: 28px;
+  background: var(--accent-bg); color: var(--accent);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  flex-shrink: 0;
+}
+.slave-pos.io-type { background: var(--warm-bg); color: var(--warm); }
+
+.slave-name-input {
+  flex: 1; min-width: 100px;
+  height: 26px; padding: 0 8px;
+  background: var(--input-bg); border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  font-size: 11px; outline: none;
+}
+.slave-name-input:focus { border-color: var(--accent); }
+
+.slave-type-select {
+  height: 26px; padding: 0 6px;
+  background: var(--input-bg); border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  font-size: 11px; outline: none;
+}
+
+.slave-actions { display: flex; gap: 2px; }
+.slave-act-btn {
+  width: 26px; height: 26px;
+  border: none; background: transparent;
+  border-radius: var(--radius-sm); color: var(--text-dim);
+  cursor: pointer; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.slave-act-btn:hover { background: var(--border); color: var(--text-primary); }
+.slave-act-btn.del:hover { background: var(--red-bg); color: var(--red); }
+
+.slave-card-body {
+  padding: 12px;
+  /* 不限制高度，完整展示所有 PDO 行 */
+}
+
+/* IO 配置 */
+.io-config {
+  display: flex; gap: 16px; flex-wrap: wrap;
+}
+.io-field {
+  display: flex; align-items: center; gap: 6px;
+}
+.io-field label { font-size: 10px; color: var(--text-dim); }
+.io-field input {
+  width: 56px; height: 26px; padding: 0 6px;
+  background: var(--input-bg); border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 11px; text-align: center;
+  outline: none;
+}
+.io-field input:focus { border-color: var(--accent); }
+.io-hint { font-size: 10px; color: var(--text-dim); margin-top: 6px; }
+
+/* PDO 条目表 */
+.pdo-section { margin-top: 4px; }
+.pdo-section + .pdo-section { margin-top: 12px; }
+.pdo-section-title {
+  font-size: 10px; font-weight: 600; color: var(--text-secondary);
+  margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+}
+.pdo-section-title .dir {
+  padding: 1px 6px; border-radius: 3px; font-size: 9px;
+}
+.pdo-section-title .dir.rx { background: var(--accent-bg); color: var(--accent); }
+.pdo-section-title .dir.tx { background: var(--green-bg); color: var(--green); }
+
+.pdo-table {
+  width: 100%; border-collapse: collapse; font-size: 10px;
+}
+.pdo-table th {
+  text-align: left; padding: 5px 6px;
+  color: var(--text-dim); font-weight: 500;
+  border-bottom: 1px solid var(--border);
+}
+.pdo-table td {
+  padding: 4px 6px; border-bottom: 1px solid rgba(42,46,54,0.4);
+  vertical-align: middle;
+}
+.pdo-table input, .pdo-table select {
+  width: 100%; height: 24px; padding: 0 6px;
+  background: var(--input-bg); border: 1px solid var(--input-border);
+  border-radius: 3px; color: var(--text-primary);
+  font-size: 10px; outline: none;
+}
+.pdo-table input:focus, .pdo-table select:focus { border-color: var(--accent); }
+.pdo-table .off-col {
+  font-family: var(--font-mono); color: var(--text-dim);
+  text-align: center; width: 48px;
+}
+.pdo-table .act-col { width: 28px; text-align: center; }
+.pdo-row-del {
+  border: none; background: transparent; color: var(--text-dim);
+  cursor: pointer; font-size: 12px; padding: 2px 4px;
+}
+.pdo-row-del:hover { color: var(--red); }
+
+.add-entry-btn {
+  margin-top: 6px; height: 24px; padding: 0 10px;
+  border: 1px dashed var(--border); background: transparent;
+  border-radius: var(--radius-sm); color: var(--text-dim);
+  font-size: 10px; cursor: pointer; width: 100%;
+}
+.add-entry-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.chain-empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: var(--text-dim); gap: 10px; padding: 32px;
+  text-align: center;
+}
+.chain-empty p { font-size: 11px; line-height: 1.6; max-width: 280px; }
+
+/* 右侧：实时数值 */
+.live-scroll {
+  flex: 1; overflow-y: auto; padding: 8px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.live-scroll::-webkit-scrollbar { width: 6px; }
+.live-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.live-slave-block {
+  flex-shrink: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.live-slave-head {
+  padding: 6px 10px; font-size: 10px; font-weight: 600;
+  background: var(--surface-hover);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px;
+}
+.live-slave-head .pos {
+  font-family: var(--font-mono); color: var(--accent); font-size: 10px;
+}
+.live-row {
+  display: flex; align-items: center;
+  padding: 5px 10px; gap: 8px;
+  border-bottom: 1px solid rgba(42,46,54,0.4);
+  font-size: 11px;
+}
+.live-row:last-child { border-bottom: none; }
+.live-label {
+  flex: 1; min-width: 0;
+  color: var(--text-secondary);
+  font-family: var(--font-mono); font-size: 10px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.live-val {
+  font-family: var(--font-mono); font-weight: 600;
+}
+.live-val.hex { color: var(--accent); min-width: 72px; text-align: right; }
+.live-val.dec { color: var(--green); min-width: 56px; text-align: right; }
+.live-val.empty { color: var(--text-dim); font-weight: 400; }
+.live-val.flash { animation: valFlash 400ms ease; }
+
+@keyframes valFlash {
+  0% { background: var(--accent-bg); }
+  100% { background: transparent; }
+}
+
+.live-empty-hint {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: var(--text-dim); font-size: 11px; gap: 8px; padding: 24px;
+  text-align: center; line-height: 1.6;
+}
+
+/* 下部状态区 */
+#status-area {
+  flex: 35; min-height: 180px; max-height: 280px;
+  display: flex; flex-direction: column;
+  background: var(--surface);
+}
+
+.status-top {
+  display: flex; align-items: center;
+  padding: 10px 14px; gap: 16px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.status-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.status-pill .label { font-size: 10px; color: var(--text-dim); }
+.status-pill .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--text-dim);
+  transition: background 300ms ease, box-shadow 300ms ease;
+}
+.status-pill .dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.status-pill .dot.yellow { background: var(--warm); box-shadow: 0 0 6px var(--warm); }
+.status-pill .dot.red { background: var(--red); }
+.status-pill .state-text { font-size: 11px; font-weight: 600; min-width: 72px; }
+
+.status-controls { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+
+.metrics-row {
+  display: flex; gap: 20px; padding: 8px 14px;
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--text-secondary); border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.metrics-row .m-label { color: var(--text-dim); }
+.metrics-row .m-val { color: var(--text-primary); font-weight: 600; }
+.metrics-row .m-val.ok { color: var(--green); }
+.metrics-row .m-val.err { color: var(--red); }
+
+#log-area {
+  flex: 1; min-height: 0;
+  overflow-y: auto; padding: 8px 14px;
+  font-family: var(--font-mono); font-size: 10px;
+  line-height: 1.7; color: var(--text-dim);
+}
+#log-area::-webkit-scrollbar { width: 6px; }
+#log-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.log-line { white-space: pre-wrap; word-break: break-all; }
+.log-line.info { color: var(--text-secondary); }
+.log-line.ok { color: var(--green); }
+.log-line.warn { color: var(--warm); }
+.log-line.err { color: var(--red); }
+.log-line.frame { color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <div id="toolbarTitle">
+      PDO 数据观察者
+      <span class="badge">IOMap Monitor</span>
+    </div>
+    <button class="tool-btn" id="btnLoadDemo" title="加载演示预设">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8m0 0l3-3m-3 3L5 7"/><path d="M3 12v1a1 1 0 001 1h8a1 1 0 001-1v-1"/></svg>
+      加载演示预设
+    </button>
+    <div class="toolbar-sep"></div>
+    <button class="tool-btn" id="btnAddSlave">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
+      添加从站
+    </button>
+  </div>
+
+  <div id="main">
+    <div id="nav-rail">
+      <button class="nav-btn" data-tooltip="ESI Browser">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+      </button>
+      <button class="nav-btn" data-tooltip="Simulate">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M9 12h6M15.5 7.5l-3 3M15.5 16.5l-3-3"/></svg>
+      </button>
+      <button class="nav-btn active" data-tooltip="PDO Observer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M12 5C7 5 3.5 8.5 2 12c1.5 3.5 5 7 10 7s8.5-3.5 10-7c-1.5-3.5-5-7-10-7z"/>
+          <circle cx="12" cy="12" r="2.5"/>
+          <line x1="4" y1="19" x2="20" y2="19" stroke-width="2"/>
+          <line x1="6" y1="16" x2="18" y2="16" stroke-width="1.5" opacity="0.7"/>
+          <line x1="8" y1="13" x2="16" y2="13" stroke-width="1.5" opacity="0.5"/>
+        </svg>
+      </button>
+      <div class="nav-spacer"></div>
+    </div>
+
+    <div id="pdo-page">
+      <div id="conn-bar">
+        <div class="conn-field">
+          <label>本机监听 IP</label>
+          <input class="ip" type="text" id="inputIp" value="0.0.0.0" title="PC 端 TCP Server 绑定地址">
+        </div>
+        <div class="conn-field">
+          <label>端口</label>
+          <input class="port" type="text" id="inputPort" value="9527">
+        </div>
+        <div class="layout-summary">
+          <span>Obytes <span class="val" id="sumO">0</span></span>
+          <span class="sep">|</span>
+          <span>Ibytes <span class="val" id="sumI">0</span></span>
+          <span class="sep">|</span>
+          <span>total <span class="val" id="sumT">0</span></span>
+        </div>
+      </div>
+
+      <div id="config-area">
+        <div id="slave-config">
+          <div class="panel-header">
+            <span class="panel-title">物理链路从站配置</span>
+            <span style="font-size:10px;color:var(--text-dim)" id="slaveCountLabel">0 个从站</span>
+            <div class="panel-actions">
+              <button class="panel-btn" id="btnMoveUp" disabled>上移</button>
+              <button class="panel-btn" id="btnMoveDown" disabled>下移</button>
+            </div>
+          </div>
+          <div class="chain-scroll" id="chainScroll"></div>
+        </div>
+
+        <div id="live-values">
+          <div class="panel-header">
+            <span class="panel-title">实时数值</span>
+            <span style="font-size:10px;color:var(--text-dim)" id="liveStatus">等待接收</span>
+          </div>
+          <div class="live-scroll" id="liveScroll">
+            <div class="live-empty-hint" id="liveEmpty">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4">
+                <path d="M12 5C7 5 3.5 8.5 2 12c1.5 3.5 5 7 10 7s8.5-3.5 10-7c-1.5-3.5-5-7-10-7z"/><circle cx="12" cy="12" r="2.5"/>
+              </svg>
+              建立连接后点击「开始接收」<br>此处显示过程数据解码值
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="status-area">
+        <div class="status-top">
+          <div class="status-pill">
+            <span class="label">客户端 (PC)</span>
+            <span class="dot" id="dotClient"></span>
+            <span class="state-text" id="stateClient">未监听</span>
+          </div>
+          <div class="status-pill">
+            <span class="label">桥接层 (设备)</span>
+            <span class="dot" id="dotBridge"></span>
+            <span class="state-text" id="stateBridge">未连接</span>
+          </div>
+          <div class="status-controls">
+            <button class="tool-btn accent" id="btnListen">开始监听</button>
+            <button class="tool-btn green" id="btnReceive" disabled>开始接收</button>
+            <button class="tool-btn" id="btnStopReceive" disabled>停止接收</button>
+            <button class="tool-btn warn" id="btnInjectErr" disabled title="注入 Obytes 不匹配的帧，测试校验失败">注入错误帧</button>
+            <button class="tool-btn danger" id="btnDisconnect" disabled>断开</button>
+          </div>
+        </div>
+        <div class="metrics-row">
+          <span><span class="m-label">seq </span><span class="m-val" id="mSeq">—</span></span>
+          <span><span class="m-label">delta </span><span class="m-val" id="mDelta">—</span></span>
+          <span><span class="m-label">~Hz </span><span class="m-val" id="mHz">—</span></span>
+          <span><span class="m-label">帧 O+I </span><span class="m-val" id="mFrameSize">—</span></span>
+          <span><span class="m-label">校验 </span><span class="m-val ok" id="mCheck">—</span></span>
+          <span><span class="m-label">帧数 </span><span class="m-val" id="mCount">0</span></span>
+        </div>
+        <div id="log-area"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+ * PDO 数据观察者 — 交互原型
+ * TCP 帧格式对齐 iomap_watch.c:
+ *   [iomap_tcp_hdr 44B BE] + [payload total_size B]
+ * Payload: [0,Obytes)=全链outputs, [Obytes,total)=全链inputs
+ * 从站顺序 = 物理链路顺序
+ * ================================================================ */
+
+const IOMT_MAGIC = 0x494F4D54;
+const IOMT_VERSION = 1;
+const HDR_SIZE = 44;
+
+const DATA_TYPES = ['UINT8','UINT16','UINT32','INT8','INT16','INT32'];
+
+let slaves = [];
+let selectedSlaveId = null;
+let layout = { Obytes: 0, Ibytes: 0, total: 0 };
+
+/* --- 连接状态 --- */
+let clientState = 'idle';   // idle | listening | connected | handshaked
+let bridgeState = 'disconnected'; // disconnected | connected | handshaked | streaming
+let receiving = false;
+let mockTimer = null;
+let connectTimer = null;
+
+let lastSeq = 0;
+let frameCount = 0;
+let hzEma = 0;
+let lastFrameTime = 0;
+let injectNextError = false;
+
+/* --- DOM --- */
+const $ = id => document.getElementById(id);
+const chainScroll = $('chainScroll');
+const liveScroll = $('liveScroll');
+const logArea = $('log-area');
+
+let lastLiveData = null;
+
+function uid() { return 's' + Math.random().toString(36).slice(2, 9); }
+
+function log(msg, cls = 'info') {
+  const line = document.createElement('div');
+  line.className = 'log-line ' + cls;
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  logArea.appendChild(line);
+  logArea.scrollTop = logArea.scrollHeight;
+}
+
+function alignBits(bitPos) {
+  if (bitPos % 8 !== 0) bitPos += 8 - (bitPos % 8);
+  return bitPos;
+}
+
+function bitsToBytes(bits) { return Math.ceil(bits / 8); }
+
+function computeLayout() {
+  let bitPos = 0;
+
+  for (const s of slaves) {
+    if (s.type === 'io') {
+      bitPos = alignBits(bitPos);
+      s._outByteOff = bitPos / 8;
+      s._outBytes = s.outBytes | 0;
+      bitPos += s._outBytes * 8;
+    } else {
+      for (const e of s.rxEntries) {
+        bitPos = alignBits(bitPos);
+        e.byteOff = bitPos / 8;
+        e.bitOff = 0;
+        bitPos += (e.bitLen | 0);
+      }
+    }
+  }
+  const Obytes = alignBits(bitPos) / 8;
+  bitPos = Obytes * 8;
+
+  for (const s of slaves) {
+    if (s.type === 'io') {
+      bitPos = alignBits(bitPos);
+      s._inByteOff = bitPos / 8;
+      s._inBytes = s.inBytes | 0;
+      bitPos += s._inBytes * 8;
+    } else {
+      for (const e of s.txEntries) {
+        bitPos = alignBits(bitPos);
+        e.byteOff = bitPos / 8;
+        e.bitOff = 0;
+        bitPos += (e.bitLen | 0);
+      }
+    }
+  }
+  const Ibytes = alignBits(bitPos) / 8 - Obytes;
+  layout = { Obytes, Ibytes, total: Obytes + Ibytes };
+
+  $('sumO').textContent = Obytes;
+  $('sumI').textContent = Ibytes;
+  $('sumT').textContent = layout.total;
+}
+
+function defaultEntry(dir) {
+  if (dir === 'rx') return { index: '0x6040', subIndex: '0x00', name: 'Control Word', dataType: 'UINT16', bitLen: 16 };
+  return { index: '0x6041', subIndex: '0x00', name: 'Status Word', dataType: 'UINT16', bitLen: 16 };
+}
+
+function formatEntryLabel(e) {
+  if (!e) return '';
+  const sub = e.subIndex || '0x00';
+  return `${e.index}:${sub} ${e.name}`;
+}
+
+function normalizeEntry(e) {
+  const entry = { ...e };
+  if (!entry.subIndex && entry.index && String(entry.index).includes(':')) {
+    const [idx, sub] = String(entry.index).split(':');
+    entry.index = idx.trim();
+    let s = (sub || '00').trim();
+    if (s && !s.toLowerCase().startsWith('0x')) s = '0x' + s;
+    entry.subIndex = s;
+  }
+  if (!entry.subIndex) entry.subIndex = '0x00';
+  return entry;
+}
+
+function newSlave(type = 'servo') {
+  return {
+    id: uid(),
+    name: type === 'servo' ? 'Servo Axis' : 'IO Module',
+    type,
+    outBytes: 4,
+    inBytes: 4,
+    rxEntries: [defaultEntry('rx'), { index: '0x607A', subIndex: '0x00', name: 'Target Position', dataType: 'INT32', bitLen: 32 }],
+    txEntries: [defaultEntry('tx'), { index: '0x6064', subIndex: '0x00', name: 'Actual Position', dataType: 'INT32', bitLen: 32 }],
+  };
+}
+
+function loadDemoPreset() {
+  if (receiving) stopReceive();
+  slaves = [
+    { id: uid(), name: 'TerminalCoupler', type: 'io', outBytes: 4, inBytes: 4,
+      rxEntries: [], txEntries: [],
+    },
+    { id: uid(), name: '从站1', type: 'servo',
+      rxEntries: [
+        { index: '0x6040', subIndex: '0x00', name: 'ControlWord', dataType: 'UINT16', bitLen: 16 },
+        { index: '0x607A', subIndex: '0x00', name: 'TargetPosition', dataType: 'INT32', bitLen: 32 },
+        { index: '0x6060', subIndex: '0x00', name: 'ModeOfOperation', dataType: 'UINT8', bitLen: 8 },
+        { index: '0x60FF', subIndex: '0x00', name: 'TargetVelocity', dataType: 'INT32', bitLen: 32 },
+        { index: '0x60B8', subIndex: '0x00', name: 'TouchProbeFunc', dataType: 'UINT16', bitLen: 16 },
+        { index: '0x60FE', subIndex: '0x01', name: 'PhysicalOutput', dataType: 'UINT32', bitLen: 32 },
+      ],
+      txEntries: [
+        { index: '0x6041', subIndex: '0x00', name: 'StatusWord', dataType: 'UINT16', bitLen: 16 },
+        { index: '0x6064', subIndex: '0x00', name: 'PositionActualValue', dataType: 'INT32', bitLen: 32 },
+        { index: '0x603F', subIndex: '0x00', name: 'ServoErrorCode', dataType: 'UINT16', bitLen: 16 },
+        { index: '0x6077', subIndex: '0x00', name: 'TorqueActualValue', dataType: 'INT16', bitLen: 16 },
+        { index: '0x606C', subIndex: '0x00', name: 'VelocityActualValue', dataType: 'INT32', bitLen: 32 },
+        { index: '0x60B9', subIndex: '0x00', name: 'TouchPeobeStatus', dataType: 'UINT16', bitLen: 16 },
+        { index: '0x60BA', subIndex: '0x00', name: 'TouchProbePos1', dataType: 'UINT32', bitLen: 32 },
+        { index: '0x6061', subIndex: '0x00', name: 'ModeOfOperation', dataType: 'UINT8', bitLen: 8 },
+        { index: '0x60FD', subIndex: '0x00', name: 'DigitalInput', dataType: 'UINT32', bitLen: 32 },
+      ],
+    },
+  ];
+  log('已加载演示预设：1 IO + 1 伺服', 'ok');
+  renderAll();
+}
+
+/* ============ 渲染 ============ */
+function renderAll() {
+  computeLayout();
+  renderChain();
+  renderLiveValues(lastLiveData);
+  $('slaveCountLabel').textContent = slaves.length + ' 个从站';
+  updateMoveButtons();
+}
+
+function renderChain() {
+  if (slaves.length === 0) {
+    chainScroll.innerHTML = `<div class="chain-empty">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+        <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
+        <line x1="12" y1="7" x2="12" y2="10"/><line x1="12" y1="14" x2="12" y2="17"/>
+      </svg>
+      <p>按物理链路顺序添加从站<br>顺序必须与 IOMap 排布一致<br>左侧列表可滚动，每张卡片完整展示配置</p>
+      <button class="tool-btn accent" onclick="document.getElementById('btnAddSlave').click()">添加第一个从站</button>
+    </div>`;
+    return;
+  }
+
+  chainScroll.innerHTML = slaves.map((s, i) => renderSlaveCard(s, i)).join('');
+  bindChainEvents();
+}
+
+function renderPdoTable(entries, dir, slaveId) {
+  if (!entries.length) return '<div style="font-size:10px;color:var(--text-dim);padding:4px 0">无条目</div>';
+  const rows = entries.map((e, ei) => `
+    <tr data-slave="${slaveId}" data-dir="${dir}" data-idx="${ei}">
+      <td style="width:64px"><input class="pdo-idx" value="${e.index}" data-field="index"></td>
+      <td style="width:48px"><input class="pdo-sub" value="${e.subIndex || '0x00'}" data-field="subIndex"></td>
+      <td><input class="pdo-name" value="${e.name}" data-field="name"></td>
+      <td style="width:72px"><select class="pdo-type" data-field="dataType">${DATA_TYPES.map(t =>
+        `<option value="${t}"${t===e.dataType?' selected':''}>${t}</option>`).join('')}</select></td>
+      <td style="width:48px"><input class="pdo-bit" value="${e.bitLen}" data-field="bitLen" style="text-align:center"></td>
+      <td class="off-col">${e.byteOff !== undefined ? '+' + e.byteOff : '—'}</td>
+      <td class="act-col"><button class="pdo-row-del" data-del="${dir}" data-ei="${ei}">×</button></td>
+    </tr>`).join('');
+  return `<table class="pdo-table">
+    <thead><tr><th>主索引</th><th>子索引</th><th>名称</th><th>类型</th><th>位宽</th><th>偏移</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+function renderSlaveCard(s, i) {
+  const isIo = s.type === 'io';
+  const body = isIo ? `
+    <div class="io-config">
+      <div class="io-field"><label>输出字节</label><input type="number" min="0" max="256" value="${s.outBytes}" data-io="outBytes"></div>
+      <div class="io-field"><label>输入字节</label><input type="number" min="0" max="256" value="${s.inBytes}" data-io="inBytes"></div>
+    </div>
+    <div class="io-hint">Outputs 区偏移 +${s._outByteOff ?? '—'}，Inputs 区偏移 +${s._inByteOff ?? '—'}</div>
+  ` : `
+    <div class="pdo-section">
+      <div class="pdo-section-title"><span class="dir rx">RxPDO</span> Outputs 区 / 主站写</div>
+      ${renderPdoTable(s.rxEntries, 'rx', s.id)}
+      <button class="add-entry-btn" data-add="rx" data-slave="${s.id}">+ 添加 Rx 条目</button>
+    </div>
+    <div class="pdo-section">
+      <div class="pdo-section-title"><span class="dir tx">TxPDO</span> Inputs 区 / 主站读</div>
+      ${renderPdoTable(s.txEntries, 'tx', s.id)}
+      <button class="add-entry-btn" data-add="tx" data-slave="${s.id}">+ 添加 Tx 条目</button>
+    </div>`;
+
+  return `<div class="slave-card" data-id="${s.id}">
+    <div class="slave-card-header">
+      <div class="slave-pos${isIo ? ' io-type' : ''}">#${i + 1}</div>
+      <input class="slave-name-input" value="${s.name}" data-name="${s.id}">
+      <select class="slave-type-select" data-type="${s.id}">
+        <option value="servo"${s.type==='servo'?' selected':''}>伺服</option>
+        <option value="io"${s.type==='io'?' selected':''}>IO</option>
+      </select>
+      <div class="slave-actions">
+        <button class="slave-act-btn" data-move="up" data-id="${s.id}" title="上移">↑</button>
+        <button class="slave-act-btn" data-move="down" data-id="${s.id}" title="下移">↓</button>
+        <button class="slave-act-btn del" data-del-slave="${s.id}" title="删除">×</button>
+      </div>
+    </div>
+    <div class="slave-card-body">${body}</div>
+  </div>`;
+}
+
+function renderLiveValues(liveData = null) {
+  if (slaves.length === 0) {
+    liveScroll.innerHTML = '';
+    const hint = document.createElement('div');
+    hint.className = 'live-empty-hint';
+    hint.innerHTML = $('liveEmpty') ? $('liveEmpty').innerHTML : '暂无从站';
+    liveScroll.appendChild(hint);
+    return;
+  }
+
+  let html = '';
+  slaves.forEach((s, i) => {
+    html += `<div class="live-slave-block" data-live="${s.id}">
+      <div class="live-slave-head"><span class="pos">#${i+1}</span>${s.name} <span style="color:var(--text-dim);font-weight:400">(${s.type==='servo'?'伺服':'IO'})</span></div>`;
+
+    if (s.type === 'io') {
+      for (let b = 0; b < (s.outBytes|0); b++) {
+        const v = liveData ? liveData[`${s.id}_out_${b}`] : null;
+        html += liveRow(`OUT${b}`, v, false);
+      }
+      for (let b = 0; b < (s.inBytes|0); b++) {
+        const v = liveData ? liveData[`${s.id}_in_${b}`] : null;
+        html += liveRow(`IN${b}`, v, false);
+      }
+    } else {
+      s.rxEntries.forEach((e, ei) => {
+        const v = liveData ? liveData[`${s.id}_rx_${ei}`] : null;
+        html += liveRow(formatEntryLabel(e), v, true);
+      });
+      s.txEntries.forEach((e, ei) => {
+        const v = liveData ? liveData[`${s.id}_tx_${ei}`] : null;
+        html += liveRow(formatEntryLabel(e), v, true);
+      });
+    }
+    html += '</div>';
+  });
+
+  liveScroll.innerHTML = html;
+}
+
+function liveRow(label, val, showDec) {
+  const flash = val ? ' flash' : '';
+  if (val === null || val === undefined) {
+    return `<div class="live-row"><span class="live-label">${label}</span><span class="live-val hex empty">—</span>${showDec?'<span class="live-val dec empty">—</span>':''}</div>`;
+  }
+  const bitLen = val.bitLen || 16;
+  const hex = '0x' + (val.hex !== undefined ? val.hex : val).toString(16).toUpperCase().padStart(Math.max(2, bitLen/4), '0');
+  const decStr = showDec && val.dec !== undefined ? String(val.dec) : '';
+  return `<div class="live-row"><span class="live-label">${label}</span><span class="live-val hex${flash}">${hex}</span>${showDec?`<span class="live-val dec${flash}">${decStr}</span>`:''}</div>`;
+}
+
+function bindChainEvents() {
+  chainScroll.querySelectorAll('[data-name]').forEach(el => {
+    el.onchange = () => {
+      const s = slaves.find(x => x.id === el.dataset.name);
+      if (s) { s.name = el.value; renderLiveValues(lastLiveData); }
+    };
+  });
+  chainScroll.querySelectorAll('[data-type]').forEach(el => {
+    el.onchange = () => {
+      const s = slaves.find(x => x.id === el.dataset.type);
+      if (!s) return;
+      if (receiving) stopReceive();
+      s.type = el.value;
+      if (s.type === 'servo' && !s.rxEntries.length) {
+        s.rxEntries = [defaultEntry('rx')];
+        s.txEntries = [defaultEntry('tx')];
+      }
+      renderAll();
+    };
+  });
+  chainScroll.querySelectorAll('[data-io]').forEach(el => {
+    el.onchange = () => {
+      const card = el.closest('.slave-card');
+      const s = slaves.find(x => x.id === card.dataset.id);
+      if (!s) return;
+      if (receiving) stopReceive();
+      s[el.dataset.io] = parseInt(el.value, 10) || 0;
+      renderAll();
+    };
+  });
+  chainScroll.querySelectorAll('.pdo-idx,.pdo-sub,.pdo-name,.pdo-type,.pdo-bit').forEach(el => {
+    el.onchange = () => {
+      const row = el.closest('tr');
+      const s = slaves.find(x => x.id === row.dataset.slave);
+      if (!s) return;
+      if (receiving) stopReceive();
+      const arr = row.dataset.dir === 'rx' ? s.rxEntries : s.txEntries;
+      const e = arr[+row.dataset.idx];
+      e[el.dataset.field] = el.dataset.field === 'bitLen' ? (parseInt(el.value,10)||8) : el.value;
+      if (el.dataset.field === 'dataType') {
+        const map = { UINT8:8, UINT16:16, UINT32:32, INT8:8, INT16:16, INT32:32 };
+        e.bitLen = map[e.dataType] || 16;
+      }
+      renderAll();
+    };
+  });
+  chainScroll.querySelectorAll('[data-del]').forEach(btn => {
+    btn.onclick = () => {
+      const row = btn.closest('tr');
+      const s = slaves.find(x => x.id === row.dataset.slave);
+      if (!s) return;
+      if (receiving) stopReceive();
+      const arr = btn.dataset.del === 'rx' ? s.rxEntries : s.txEntries;
+      arr.splice(+btn.dataset.ei, 1);
+      renderAll();
+    };
+  });
+  chainScroll.querySelectorAll('[data-add]').forEach(btn => {
+    btn.onclick = () => {
+      const s = slaves.find(x => x.id === btn.dataset.slave);
+      if (!s) return;
+      if (receiving) stopReceive();
+      const arr = btn.dataset.add === 'rx' ? s.rxEntries : s.txEntries;
+      arr.push(defaultEntry(btn.dataset.add === 'rx' ? 'rx' : 'tx'));
+      renderAll();
+    };
+  });
+  chainScroll.querySelectorAll('[data-del-slave]').forEach(btn => {
+    btn.onclick = () => {
+      if (receiving) stopReceive();
+      slaves = slaves.filter(x => x.id !== btn.dataset.delSlave);
+      renderAll();
+    };
+  });
+  chainScroll.querySelectorAll('[data-move]').forEach(btn => {
+    btn.onclick = () => {
+      const idx = slaves.findIndex(x => x.id === btn.dataset.id);
+      if (idx < 0) return;
+      if (receiving) stopReceive();
+      const ni = btn.dataset.move === 'up' ? idx - 1 : idx + 1;
+      if (ni < 0 || ni >= slaves.length) return;
+      [slaves[idx], slaves[ni]] = [slaves[ni], slaves[idx]];
+      renderAll();
+    };
+  });
+}
+
+function updateLiveDisplay(liveData) {
+  lastLiveData = liveData;
+  renderLiveValues(liveData);
+}
+
+/* ============ 协议 ============ */
+function parseHeader(buf) {
+  const v = new DataView(buf);
+  return {
+    magic: v.getUint32(0, false),
+    version: v.getUint32(4, false),
+    seq: Number(v.getBigUint64(8, false)),
+    total_size: v.getUint32(16, false),
+    Obytes: v.getUint32(20, false),
+    Ibytes: v.getUint32(24, false),
+    layout: v.getUint32(28, false),
+    front_idx: v.getUint32(32, false),
+    host_ts_ns: Number(v.getBigUint64(36, false)),
+  };
+}
+
+function buildHeader(meta, seq, front) {
+  const buf = new ArrayBuffer(HDR_SIZE);
+  const v = new DataView(buf);
+  v.setUint32(0, IOMT_MAGIC, false);
+  v.setUint32(4, IOMT_VERSION, false);
+  v.setBigUint64(8, BigInt(seq), false);
+  v.setUint32(16, meta.total_size, false);
+  v.setUint32(20, meta.Obytes, false);
+  v.setUint32(24, meta.Ibytes, false);
+  v.setUint32(28, 0, false);
+  v.setUint32(32, front, false);
+  v.setBigUint64(36, BigInt(Date.now() * 1000000), false);
+  return buf;
+}
+
+function validateFrame(hdr, payloadLen) {
+  if (hdr.magic !== IOMT_MAGIC) return 'magic 无效，期望 0x494F4D54';
+  if (hdr.version !== IOMT_VERSION) return 'version 无效，期望 1';
+  if (hdr.total_size !== hdr.Obytes + hdr.Ibytes) return `total_size 不一致: ${hdr.total_size} != ${hdr.Obytes}+${hdr.Ibytes}`;
+  if (payloadLen !== hdr.total_size) return `payload 长度 ${payloadLen} != total_size ${hdr.total_size}`;
+  if (hdr.Obytes !== layout.Obytes) return `Obytes 不匹配: 帧=${hdr.Obytes} 配置=${layout.Obytes}`;
+  if (hdr.Ibytes !== layout.Ibytes) return `Ibytes 不匹配: 帧=${hdr.Ibytes} 配置=${layout.Ibytes}`;
+  if (layout.total === 0) return '本地从站配置为空';
+  return null;
+}
+
+function readValue(payload, byteOff, bitLen, dataType) {
+  let val = 0;
+  const bytes = Math.ceil(bitLen / 8);
+  for (let i = 0; i < bytes && byteOff + i < payload.length; i++)
+    val |= payload[byteOff + i] << (i * 8);
+
+  const bits = bitLen | 0;
+  if (bits < 32) val &= (1 << bits) - 1;
+  if (dataType.startsWith('INT') && (val & (1 << (bits - 1))))
+    val -= (1 << bits);
+
+  const hexWidth = Math.ceil(bits / 4);
+  return { hex: val >>> 0, dec: val, bitLen: bits };
+}
+
+function decodePayload(payload) {
+  const live = {};
+  for (const s of slaves) {
+    if (s.type === 'io') {
+      for (let b = 0; b < s.outBytes; b++) {
+        const off = (s._outByteOff || 0) + b;
+        live[`${s.id}_out_${b}`] = { hex: payload[off] || 0, bitLen: 8 };
+      }
+      for (let b = 0; b < s.inBytes; b++) {
+        const off = (s._inByteOff || 0) + b;
+        live[`${s.id}_in_${b}`] = { hex: payload[off] || 0, bitLen: 8 };
+      }
+    } else {
+      s.rxEntries.forEach((e, ei) => {
+        live[`${s.id}_rx_${ei}`] = readValue(payload, e.byteOff, e.bitLen, e.dataType);
+      });
+      s.txEntries.forEach((e, ei) => {
+        live[`${s.id}_tx_${ei}`] = readValue(payload, e.byteOff, e.bitLen, e.dataType);
+      });
+    }
+  }
+  return live;
+}
+
+function generateMockPayload(seq) {
+  const buf = new Uint8Array(layout.total);
+  for (const s of slaves) {
+    if (s.type === 'io') {
+      for (let b = 0; b < s.outBytes; b++)
+        buf[(s._outByteOff||0) + b] = ((seq + b) & 0xFF);
+      for (let b = 0; b < s.inBytes; b++)
+        buf[(s._inByteOff||0) + b] = ((seq * 3 + b * 17) & 0xFF);
+    } else {
+      s.rxEntries.forEach(e => {
+        const w = e.bitLen / 8;
+        for (let i = 0; i < w; i++)
+          buf[e.byteOff + i] = ((seq >> (i*8)) & 0xFF);
+      });
+      s.txEntries.forEach(e => {
+        if (e.index === '0x6041') {
+          buf[e.byteOff] = 0x37; buf[e.byteOff+1] = 0x02;
+        } else if (e.index === '0x6064') {
+          const pos = (seq * 100) % 100000;
+          buf[e.byteOff]   = pos & 0xFF;
+          buf[e.byteOff+1] = (pos >> 8) & 0xFF;
+          buf[e.byteOff+2] = (pos >> 16) & 0xFF;
+          buf[e.byteOff+3] = (pos >> 24) & 0xFF;
+        } else {
+          for (let i = 0; i < e.bitLen/8; i++)
+            buf[e.byteOff + i] = ((seq + i) & 0xFF);
+        }
+      });
+    }
+  }
+  return buf;
+}
+
+function processFrame(hdr, payload) {
+  const err = validateFrame(hdr, payload.length);
+  $('mSeq').textContent = hdr.seq;
+  $('mDelta').textContent = lastSeq ? (hdr.seq - lastSeq) : 0;
+  $('mFrameSize').textContent = hdr.Obytes + '+' + hdr.Ibytes;
+
+  const now = performance.now();
+  if (lastFrameTime > 0) {
+    const dt = (now - lastFrameTime) / 1000;
+    if (dt > 0) {
+      const inst = 1 / dt;
+      hzEma = hzEma ? hzEma * 0.9 + inst * 0.1 : inst;
+      $('mHz').textContent = hzEma.toFixed(1);
+    }
+  }
+  lastFrameTime = now;
+  lastSeq = hdr.seq;
+  frameCount++;
+  $('mCount').textContent = frameCount;
+
+  if (err) {
+    $('mCheck').textContent = '失败';
+    $('mCheck').className = 'm-val err';
+    log('校验失败: ' + err, 'err');
+    stopReceive(false);
+    return;
+  }
+
+  $('mCheck').textContent = '通过';
+  $('mCheck').className = 'm-val ok';
+  updateLiveDisplay(decodePayload(payload));
+  $('liveStatus').textContent = '接收中';
+}
+
+/* ============ 状态机 / Mock Bridge ============ */
+function updateStatusUI() {
+  const clientMap = { idle: ['未监听',''], listening: ['监听中','yellow'], connected: ['已连接','yellow'], handshaked: ['已握手','green'] };
+  const bridgeMap = { disconnected: ['未连接',''], connected: ['TCP已连接','yellow'], handshaked: ['已握手','green'], streaming: ['数据流','green'] };
+
+  const [cText, cCls] = clientMap[clientState] || ['?',''];
+  const [bText, bCls] = bridgeMap[bridgeState] || ['?',''];
+
+  $('stateClient').textContent = cText;
+  $('dotClient').className = 'dot ' + cCls;
+  $('stateBridge').textContent = bText;
+  $('dotBridge').className = 'dot ' + bCls;
+
+  const handshaked = clientState === 'handshaked' && bridgeState === 'handshaked';
+  $('btnListen').disabled = clientState !== 'idle';
+  $('btnReceive').disabled = !handshaked || receiving;
+  $('btnStopReceive').disabled = !receiving;
+  $('btnInjectErr').disabled = !handshaked;
+  $('btnDisconnect').disabled = clientState === 'idle';
+}
+
+function startListen() {
+  const ip = $('inputIp').value;
+  const port = $('inputPort').value;
+  if (!port || +port < 1 || +port > 65535) { log('端口无效', 'err'); return; }
+  if (slaves.length === 0) { log('请先配置至少一个从站', 'warn'); return; }
+
+  computeLayout();
+  clientState = 'listening';
+  bridgeState = 'disconnected';
+  updateStatusUI();
+  log(`客户端开始监听 ${ip}:${port}，等待 iomap_watch 连接...`, 'info');
+
+  connectTimer = setTimeout(() => {
+    if (clientState !== 'listening') return;
+    bridgeState = 'connected';
+    clientState = 'connected';
+    updateStatusUI();
+    log('[Mock] 桥接层 TCP 连接成功', 'ok');
+
+    setTimeout(() => {
+      if (clientState !== 'connected') return;
+      log('客户端发送握手字节 0x01', 'info');
+      clientState = 'handshaked';
+      bridgeState = 'handshaked';
+      updateStatusUI();
+      log('[Mock] 桥接层收到握手，允许发送帧', 'ok');
+    }, 400);
+  }, 1500);
+}
+
+function disconnect() {
+  if (receiving) stopReceive(false);
+  clearTimeout(connectTimer);
+  if (mockTimer) { clearInterval(mockTimer); mockTimer = null; }
+  clientState = 'idle';
+  bridgeState = 'disconnected';
+  lastSeq = 0; frameCount = 0; hzEma = 0; lastFrameTime = 0;
+  $('mSeq').textContent = $('mDelta').textContent = $('mHz').textContent = '—';
+  $('mFrameSize').textContent = $('mCheck').textContent = '—';
+  $('mCheck').className = 'm-val';
+  $('mCount').textContent = '0';
+  $('liveStatus').textContent = '等待接收';
+  lastLiveData = null;
+  renderAll();
+  updateStatusUI();
+  log('连接已断开', 'warn');
+}
+
+function startReceive() {
+  if (clientState !== 'handshaked') { log('尚未完成握手，无法接收', 'warn'); return; }
+  receiving = true;
+  bridgeState = 'streaming';
+  frameCount = 0; lastSeq = 0; hzEma = 0; lastFrameTime = 0;
+  injectNextError = false;
+  updateStatusUI();
+  log(`开始接收，期望 Obytes=${layout.Obytes} Ibytes=${layout.Ibytes} total=${layout.total}`, 'ok');
+
+  let mockSeq = 100;
+  mockTimer = setInterval(() => {
+    if (!receiving) return;
+    mockSeq++;
+    const front = mockSeq % 2;
+    let hdr = {
+      magic: IOMT_MAGIC, version: IOMT_VERSION, seq: mockSeq,
+      total_size: layout.total,
+      Obytes: injectNextError ? layout.Obytes + 99 : layout.Obytes,
+      Ibytes: layout.Ibytes, layout: 0, front_idx: front,
+    };
+    injectNextError = false;
+    const payload = generateMockPayload(mockSeq);
+    processFrame(hdr, payload);
+    if (receiving && mockSeq % 30 === 0)
+      log(`seq=${mockSeq} O+I=${hdr.Obytes}+${hdr.Ibytes} front=${front}`, 'frame');
+  }, 16);
+}
+
+function stopReceive(logMsg = true) {
+  receiving = false;
+  if (mockTimer) { clearInterval(mockTimer); mockTimer = null; }
+  if (bridgeState === 'streaming') bridgeState = 'handshaked';
+  lastLiveData = null;
+  renderLiveValues(null);
+  $('liveStatus').textContent = '已停止';
+  updateStatusUI();
+  if (logMsg) log('已停止接收（连接保持）', 'warn');
+}
+
+function updateMoveButtons() {
+  $('btnMoveUp').disabled = slaves.length < 2;
+  $('btnMoveDown').disabled = slaves.length < 2;
+}
+
+/* ============ 事件绑定 ============ */
+$('btnLoadDemo').onclick = loadDemoPreset;
+$('btnAddSlave').onclick = () => { if (receiving) stopReceive(); slaves.push(newSlave()); renderAll(); };
+$('btnListen').onclick = startListen;
+$('btnReceive').onclick = startReceive;
+$('btnStopReceive').onclick = () => stopReceive();
+$('btnInjectErr').onclick = () => { injectNextError = true; log('下一帧将注入 Obytes 错误', 'warn'); };
+$('btnDisconnect').onclick = disconnect;
+
+loadDemoPreset();
+updateStatusUI();
+</script>
+</body>
+</html>

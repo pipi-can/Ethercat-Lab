@@ -1,0 +1,11 @@
+release/main.o
+release/esiparser.o
+release/esitreemodel.o
+release/simengine.o
+release/networkmanager.o
+release/qrc_qml.o
+release/qrc_resources.o
+release/moc_esiparser.o
+release/moc_esitreemodel.o
+release/moc_simengine.o
+release/moc_networkmanager.o

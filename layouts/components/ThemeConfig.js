@@ -11,6 +11,27 @@ const DarkTheme = {
 
     // ── 强调色 ────────────────────────────────────────────────
     accent: "#5294E2",        // 蓝色强调（按钮、焦点边框等）
+    accentHover: "#6aa3e8",
+    accentPress: "#4580c8",
+    accentMutedBg: "#145294E2", // accent 8% 透明，用于徽章背景
+
+    // ── 语义色（状态 / 操作，对齐 HTML 原型）──────────────────
+    success: "#42a85f",
+    successHover: "#5abe6f",
+    successPress: "#3a9554",
+    successMutedBg: "#1442a85f", // success 8% 透明，TxPDO 标签
+    warn: "#d4844a",
+    warnHover: "#e89a5c",
+    warnPress: "#c0743a",
+    warnMutedBg: "#14d4844a",  // warn 8% 透明，IO 从站序号徽章
+    danger: "#e0554a",
+    dangerHover: "#e86a62",
+    dangerPress: "#c84840",
+    textOnSolid: "#ffffff",   // 实心按钮上的文字
+
+    // ── 面板 / 表面 ───────────────────────────────────────────
+    bgSurface: "#252830",     // 次级面板、中性按钮背景
+    bgSurfaceHover: "#3a3d45",
 
     // ── 通用文字 ──────────────────────────────────────────────
     textPrimary:   "#ffffff", // 主要文字（白色）
