@@ -205,7 +205,7 @@ bool NetworkManager::startListen(const QString& listenIp, quint16 port, const QS
     QHostAddress addr = listenIp.isEmpty() || listenIp == QStringLiteral("0.0.0.0")
                             ? QHostAddress::AnyIPv4
                             : QHostAddress(listenIp);
-    if (!m_server->listen(addr, port)) {
+    if (!m_server->listen(addr, port)) {    // 设置监听IP和端口
         appendLog(QStringLiteral("监听失败: ") + m_server->errorString(), QStringLiteral("err"));
         stopServer();
         return false;

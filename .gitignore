@@ -1,4 +1,9 @@
 build/
 .qtcreator/
 debug/
-EtherCAT-Lab.pro.user
+EtherCAT-Lab.pro*
+.cursor/
+.docs/
+.qmake-stash
+CLAUDE
+EtherCAT_Lab_评估与架构设计_QML版
